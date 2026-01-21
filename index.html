@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>かんじ けんさく</title>
+    <style>
+        /* こどもにやさしいデザイン */
+        body {
+            font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+            background-color: #f0f8ff; /* うすい水色 */
+            text-align: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: #0066cc;
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        /* 入力エリア */
+        input[type="text"] {
+            width: 80%;
+            padding: 15px;
+            font-size: 20px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #0066cc;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 30px;
+            font-size: 20px;
+            background-color: #ff9900;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #e68a00;
+        }
+
+        /* 結果表示エリア */
+        #result-area {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .kanji-large {
+            font-size: 60px; /* 漢字を大きく */
+            font-weight: bold;
+            color: #333;
+            margin-right: 20px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .meaning {
+            font-size: 18px;
+            color: #555;
+        }
+
+        .example {
+            color: #0066cc;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🔍 かんじを さがそう</h1>
+        <p>ひらがなで 入力してね（例：あう、かえる）</p>
+        
+        <input type="text" id="input-text" placeholder="ここに ひらがなを かく">
+        <br>
+        <button onclick="searchKanji()">さがす</button>
+
+        <div id="result-area"></div>
+    </div>
+
+    <script>
+        // 辞書データ（ここによく使う漢字を追加できます）
+        // 小学生が迷いやすい同音異義語を中心に登録しています
+        const dictionary = {
+            "あう": [
+                { kanji: "会う", mean: "人と かおを あわせる", ex: "ともだちに 会う" },
+                { kanji: "合う", mean: "ぴったり くる", ex: "サイズが 合う" },
+                { kanji: "遭う", mean: "わるいことに であう", ex: "事故（じこ）に 遭う" }
+            ],
+            "かえる": [
+                { kanji: "帰る", mean: "家に もどる", ex: "家に 帰る" },
+                { kanji: "変える", mean: "ちがうものに する", ex: "色を 変える" },
+                { kanji: "買える", mean: "おかねで かうことができる", ex: "おかしが 買える" },
+                { kanji: "返る", mean: "もとのばしょに もどる", ex: "落とし物が 返る" }
+            ],
+            "はやい": [
+                { kanji: "早い", mean: "時間が はやい", ex: "朝（あさ） 早い" },
+                { kanji: "速い", mean: "スピードが はやい", ex: "足が 速い" }
+            ],
+            "あける": [
+                { kanji: "開ける", mean: "とじているものを ひらく", ex: "ドアを 開ける" },
+                { kanji: "空ける", mean: "なかのものを だす", ex: "席（せき）を 空ける" },
+                { kanji: "明ける", mean: "あかるくなる・おわる", ex: "夜が 明ける" }
+            ],
+            "なおす": [
+                { kanji: "直す", mean: "こわれたものを もとにもどす", ex: "おもちゃを 直す" },
+                { kanji: "治す", mean: "病気（びょうき）を よくいする", ex: "かぜを 治す" }
+            ],
+            "あつい": [
+                { kanji: "暑い", mean: "きおんが たかい", ex: "夏は 暑い" },
+                { kanji: "熱い", mean: "おんどが たかい", ex: "お茶が 熱い" },
+                { kanji: "厚い", mean: "あつみが ある", ex: "本が 厚い" }
+            ]
+        };
+
+        function searchKanji() {
+            const input = document.getElementById('input-text').value.trim(); // 入力された文字
+            const resultArea = document.getElementById('result-area');
+            resultArea.innerHTML = ""; // 前の結果を消す
+
+            if (input === "") {
+                return;
+            }
+
+            // 辞書にあるかチェック
+            if (dictionary[input]) {
+                const list = dictionary[input];
+                
+                list.forEach(item => {
+                    // カードを作成して表示
+                    const card = `
+                        <div class="card">
+                            <div class="kanji-large">${item.kanji}</div>
+                            <div class="meaning">
+                                <div>意味：${item.mean}</div>
+                                <div class="example">例：${item.ex}</div>
+                            </div>
+                        </div>
+                    `;
+                    resultArea.innerHTML += card;
+                });
+            } else {
+                resultArea.innerHTML = `<p>ごめんね。「${input}」は まだ とうろく されていないよ。</p>`;
+            }
+        }
+
+        // Enterキーでも検索できるようにする
+        document.getElementById("input-text").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                searchKanji();
+            }
+        });
+    </script>
+</body>
+</html>
