@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字 例文検索アプリ</title>
+    <title>漢字 例文オート検索</title>
     <style>
-        /* 全体の設定 */
+        /* デザイン設定 */
         body {
             font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-            background-color: #fff9c4; /* やさしい黄色 */
+            background-color: #fff3e0; /* オレンジ系のやさしい色 */
             margin: 0;
             padding: 0;
             color: #333;
@@ -24,9 +24,9 @@
             overflow: hidden;
         }
 
-        /* 左パネル（検索） */
+        /* 左パネル */
         .search-panel {
-            width: 320px;
+            width: 300px;
             background-color: #ffffff;
             padding: 30px;
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
@@ -35,45 +35,46 @@
             z-index: 10;
         }
 
-        /* 右パネル（結果） */
+        /* 右パネル */
         .result-panel {
             flex: 1;
             padding: 30px;
-            background-color: #fffde7;
+            background-color: #fff8e1;
             overflow-y: auto;
         }
 
-        h1 { color: #fbc02d; font-size: 22px; text-align: center; margin-top: 0; text-shadow: 1px 1px 0 #fff; }
+        h1 { color: #ff6f00; font-size: 22px; text-align: center; margin-top: 0; }
         .instruction { font-size: 14px; color: #666; margin-bottom: 20px; text-align: center; }
 
         input[type="text"] {
             width: 100%;
             padding: 15px;
             font-size: 20px;
-            border: 3px solid #ffe082;
+            border: 3px solid #ffcc80;
             border-radius: 12px;
             outline: none;
             box-sizing: border-box;
             margin-bottom: 15px;
         }
-        input[type="text"]:focus { border-color: #fbc02d; }
+        input[type="text"]:focus { border-color: #ff9800; }
 
         button {
             width: 100%;
             padding: 15px;
             font-size: 18px;
-            background-color: #fbc02d;
+            background-color: #ff9800;
             color: white;
             border: none;
             border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
-            box-shadow: 0 4px 0 #f57f17;
+            box-shadow: 0 4px 0 #ef6c00;
             margin-bottom: 10px;
         }
         button:active { transform: translateY(4px); box-shadow: none; }
+        button:disabled { background-color: #ccc; box-shadow: none; cursor: not-allowed; }
 
-        /* 結果グリッド */
+        /* 結果エリア */
         #result-area {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -82,20 +83,19 @@
             margin: 0 auto;
         }
 
-        /* カードデザイン */
         .card {
             background: #fff;
             border-radius: 15px;
             padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
             border-left: 10px solid #ddd;
             position: relative;
         }
 
-        .card.source-manual { border-left-color: #fbc02d; } /* 黄色：手動 */
-        .card.source-auto { border-left-color: #bdbdbd; }   /* グレー：自動 */
+        .card.source-manual { border-left-color: #ff9800; } /* 先生の例文 */
+        .card.source-web { border-left-color: #29b6f6; }    /* Webから取得 */
 
         .card-header {
             display: flex;
@@ -107,51 +107,44 @@
         }
 
         .kanji-large {
-            font-size: 50px;
+            font-size: 48px;
             font-weight: bold;
             color: #333;
             margin-right: 15px;
         }
 
         .badge {
-            font-size: 12px;
+            font-size: 11px;
             color: white;
             padding: 4px 8px;
             border-radius: 6px;
             margin-left: auto;
             font-weight: bold;
         }
-        .badge-manual { background: #fbc02d; }
-        .badge-auto { background: #9e9e9e; }
+        .badge-manual { background: #ff9800; }
+        .badge-web { background: #29b6f6; }
 
-        /* 例文エリア */
         .example-box {
-            font-size: 18px;
-            color: #333;
-            background-color: #fff9c4; /* 薄い黄色 */
+            font-size: 16px;
+            color: #444;
+            background-color: #fff3e0;
             padding: 15px;
             border-radius: 10px;
-            line-height: 1.5;
+            line-height: 1.6;
             flex: 1;
-            font-weight: bold;
         }
 
-        /* 外部リンクボタン */
-        .search-btn {
-            display: block;
-            margin-top: 10px;
-            text-align: center;
-            background: #f5f5f5;
-            color: #555;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: 0.3s;
+        /* 読み込み中のくるくる */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ff9800;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
         }
-        .search-btn:hover {
-            background: #e0e0e0;
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* スマホ対応 */
         @media (max-width: 768px) {
@@ -165,21 +158,21 @@
 
     <div class="app-container">
         <div class="search-panel">
-            <h1>✍️ 漢字と例文</h1>
+            <h1>🌐 例文オート検索</h1>
             <p class="instruction">ひらがなで入力してね</p>
             
-            <input type="text" id="input-text" placeholder="例：あう、きかい">
-            <button onclick="searchKanji()">さがす</button>
+            <input type="text" id="input-text" placeholder="例：あう、しんごう">
+            <button onclick="startSearch()" id="search-btn">さがす</button>
             
             <div style="font-size: 12px; color: #666; margin-top: 20px;">
-                <p>💡 色のちがい</p>
+                <p>💡 データの種類</p>
                 <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
-                    <span style="width:15px; height:15px; background:#fbc02d; display:inline-block;"></span>
-                    <span>先生の例文（すぐ見れる）</span>
+                    <span style="width:15px; height:15px; background:#ff9800; display:inline-block;"></span>
+                    <span>先生の辞書（正確）</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
-                    <span style="width:15px; height:15px; background:#bdbdbd; display:inline-block;"></span>
-                    <span>ネット検索（ボタンをおす）</span>
+                    <span style="width:15px; height:15px; background:#29b6f6; display:inline-block;"></span>
+                    <span>ネット検索（自動）</span>
                 </div>
             </div>
         </div>
@@ -187,119 +180,125 @@
         <div class="result-panel">
             <div id="result-area">
                 <div style="text-align: center; color: #aaa; margin-top: 50px;">
-                    ここに 漢字と 例文が 出るよ
+                    ここに 結果が 出るよ
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // ★ここに「よく使う言葉」の例文を登録してね
+        // 1. 手作り辞書（一番優先）
         const dictionary = {
             "あう": [
-                { kanji: "会う", ex: "友だちに 会う" },
-                { kanji: "合う", ex: "サイズが 合う" },
-                { kanji: "遭う", ex: "夕立（ゆうだち）に 遭う" }
-            ],
-            "あける": [
-                { kanji: "開ける", ex: "ドアを 開ける" },
-                { kanji: "空ける", ex: "席（せき）を 空ける" },
-                { kanji: "明ける", ex: "夜が 明ける" }
-            ],
-            "うつす": [
-                { kanji: "写す", ex: "ノートに 写す" },
-                { kanji: "映す", ex: "鏡（かがみ）に 映す" },
-                { kanji: "移す", ex: "席を 移す" }
-            ],
-            "きかい": [
-                { kanji: "機械", ex: "機械を 動かす" },
-                { kanji: "機会", ex: "よい 機会" },
-                { kanji: "器械", ex: "器械 体操（たいそう）" }
+                { kanji: "会う", ex: "駅で 友だちに 会う。" },
+                { kanji: "合う", ex: "くつの サイズが 合う。" },
+                { kanji: "遭う", ex: "にわか雨に 遭う。" }
             ],
             "こうえん": [
-                { kanji: "公園", ex: "公園で あそぶ" },
-                { kanji: "講演", ex: "先生の 講演をきく" }
-            ],
-            "はやい": [
-                { kanji: "早い", ex: "朝（あさ） 早い" },
-                { kanji: "速い", ex: "足が 速い" }
+                { kanji: "公園", ex: "公園で サッカーをする。" },
+                { kanji: "講演", ex: "有名な 人の 講演を聞く。" }
             ]
         };
 
-        async function searchKanji() {
+        // 検索ボタンを押した時の処理
+        async function startSearch() {
             const input = document.getElementById('input-text').value.trim();
             const resultArea = document.getElementById('result-area');
+            const btn = document.getElementById('search-btn');
             
             if (input === "") return;
 
-            resultArea.innerHTML = '<p style="text-align:center; color:#666;">しらべています...</p>';
+            // 画面をリセットして読み込み中にする
+            resultArea.innerHTML = '<div class="spinner"></div><p style="text-align:center">ネットから 例文を さがしています...</p>';
+            btn.disabled = true; // 連打防止
 
-            // 1. 登録済みデータがある場合
-            if (dictionary[input]) {
-                resultArea.innerHTML = ""; 
-                dictionary[input].forEach(item => {
-                    // true = 手動登録
-                    createCard(item.kanji, item.ex, true);
-                });
-            } 
-            // 2. ない場合（自動変換のみ）
-            else {
-                try {
-                    const response = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${input}`);
-                    const data = await response.json();
-                    
-                    resultArea.innerHTML = ""; 
-
-                    if (data && data[0] && data[0][1] && data[0][1].length > 0) {
-                        const candidates = data[0][1].slice(0, 3);
-                        
-                        candidates.forEach(kanji => {
-                            if (kanji === input) return;
-                            // false = 自動（例文なし）
-                            createCard(kanji, null, false);
-                        });
-
-                        if(resultArea.innerHTML === "") {
-                             resultArea.innerHTML = `<div style="text-align:center; color:#777;">漢字が見つかりませんでした</div>`;
-                        }
-                    } else {
-                        resultArea.innerHTML = `<div style="text-align:center; color:#777;">見つかりませんでした</div>`;
-                    }
-                } catch (error) {
-                    resultArea.innerHTML = `<p>エラーが発生しました</p>`;
+            try {
+                // A. 手作り辞書にあるか確認
+                if (dictionary[input]) {
+                    resultArea.innerHTML = "";
+                    dictionary[input].forEach(item => {
+                        createCard(item.kanji, item.ex, true);
+                    });
+                } 
+                // B. ない場合はネット検索へ
+                else {
+                    await searchFromWeb(input);
                 }
+            } catch (e) {
+                console.error(e);
+                resultArea.innerHTML = '<p style="text-align:center">エラーに なっちゃいました。</p>';
+            }
+
+            btn.disabled = false; // ボタンを復活
+        }
+
+        // Webから漢字と例文を探す関数
+        async function searchFromWeb(hiragana) {
+            const resultArea = document.getElementById('result-area');
+            
+            // 1. まずGoogleで「漢字の候補」を取得
+            const googleRes = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${hiragana}`);
+            const googleData = await googleRes.json();
+
+            if (!googleData || !googleData[0] || !googleData[0][1] || googleData[0][1].length === 0) {
+                resultArea.innerHTML = '<p style="text-align:center">漢字が 見つかりませんでした。</p>';
+                return;
+            }
+
+            const candidates = googleData[0][1].slice(0, 3); // 上位3つを取得
+            let foundCount = 0;
+            resultArea.innerHTML = ""; // 読み込み表示を消す
+
+            // 2. 各漢字について「Tatoeba」から例文を取得
+            // （for文を使って順番に処理します）
+            for (const kanji of candidates) {
+                if (kanji === hiragana) continue; // ひらがなのままならスキップ
+
+                // Tatoeba APIを呼び出す（CORS制限回避のためプロキシを使用）
+                // 長すぎる文章を除外するために、短い順にソートして取得
+                const proxyUrl = "https://api.allorigins.win/get?url=";
+                const targetUrl = encodeURIComponent(`https://tatoeba.org/en/api_v0/search?from=jpn&trans_to=eng&query=${kanji}&sort=length&direction=asc`);
+                
+                try {
+                    const res = await fetch(proxyUrl + targetUrl);
+                    const data = await res.json();
+                    const json = JSON.parse(data.contents); // プロキシの中身を取り出す
+
+                    let exampleSentence = "例文が 見つかりませんでした。";
+
+                    // 検索結果から、よさそうな例文を探す
+                    if (json.results && json.results.length > 0) {
+                        // 最初の結果を採用（短い順になっているはず）
+                        // ※HTMLタグが含まれている場合があるので除去する
+                        const rawText = json.results[0].text;
+                        exampleSentence = rawText.replace(/<[^>]*>?/gm, ''); 
+                    }
+
+                    createCard(kanji, exampleSentence, false);
+                    foundCount++;
+
+                } catch (err) {
+                    console.log("例文取得エラー:", kanji);
+                    createCard(kanji, "（通信エラーで例文が出ませんでした）", false);
+                    foundCount++;
+                }
+            }
+
+            if (foundCount === 0) {
+                resultArea.innerHTML = '<p style="text-align:center">よい漢字が 見つかりませんでした。</p>';
             }
         }
 
-        // カード生成（例文モード）
+        // カードを作成する関数
         function createCard(kanji, example, isManual) {
             const resultArea = document.getElementById('result-area');
             
-            let cardClass = isManual ? "card source-manual" : "card source-auto";
-            let badgeText = isManual ? "先生の例文" : "ネット検索";
-            let badgeClass = isManual ? "badge-manual" : "badge-auto";
+            const badgeText = isManual ? "先生の辞書" : "ネット検索";
+            const badgeClass = isManual ? "badge-manual" : "badge-web";
+            const cardClass = isManual ? "card source-manual" : "card source-web";
 
-            // 例文エリアの中身
-            let contentHtml = "";
-
-            if (isManual) {
-                // 手動登録の場合：例文をそのまま表示
-                contentHtml = `<div class="example-box">例文：<br>${example}</div>`;
-            } else {
-                // 自動の場合：検索ボタンを表示
-                // Yahoo!きっずの辞書検索URL
-                const searchUrl = `https://kids.yahoo.co.jp/search/dictionary?q=${kanji} 例文`;
-                // もしくはGoogleなら: `https://www.google.com/search?q=${kanji}+例文`
-                
-                contentHtml = `
-                    <div class="example-box" style="background:#f5f5f5; color:#777; font-size:14px;">
-                        まだ例文がありません
-                    </div>
-                    <a href="${searchUrl}" target="_blank" class="search-btn">
-                        🔍 「${kanji}」の例文を見る
-                    </a>
-                `;
-            }
+            // ネット検索の場合は、注意書きを追加
+            const note = isManual ? "" : "<div style='font-size:10px; color:#888; text-align:right; margin-top:5px;'>※ネット上の例文です</div>";
 
             const html = `
                 <div class="${cardClass}">
@@ -307,15 +306,19 @@
                         <div class="kanji-large">${kanji}</div>
                         <span class="badge ${badgeClass}">${badgeText}</span>
                     </div>
-                    ${contentHtml}
+                    <div class="example-box">
+                        ${example}
+                    </div>
+                    ${note}
                 </div>
             `;
             resultArea.innerHTML += html;
         }
 
+        // Enterキー対応
         document.getElementById("input-text").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
-                searchKanji();
+                startSearch();
             }
         });
     </script>
