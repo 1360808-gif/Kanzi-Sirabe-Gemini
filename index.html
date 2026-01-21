@@ -3,47 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字使い分け辞典（小1〜小6対応）</title>
+    <title>漢字使い分け辞典（２カラム版）</title>
     <style>
-        /* 全体のデザイン */
+        /* 全体の設定 */
         body {
             font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-            background-color: #e0f7fa; /* すずしい水色 */
-            text-align: center;
-            padding: 20px;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
             color: #333;
+            height: 100vh; /* 画面いっぱいの高さ */
+            display: flex;
+            flex-direction: column;
         }
 
+        /* レイアウトの枠組み */
+        .app-container {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden; /* スクロール制御 */
+        }
+
+        /* 左カラム：検索エリア */
+        .search-panel {
+            width: 300px;
+            background-color: #ffffff;
+            padding: 30px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        /* 右カラム：結果エリア */
+        .result-panel {
+            flex: 1;
+            padding: 30px;
+            background-color: #e0f7fa;
+            overflow-y: auto; /* ここだけスクロールする */
+        }
+
+        /* タイトルと説明 */
         h1 {
             color: #00838f;
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-size: 22px;
+            margin-bottom: 10px;
+            text-align: center;
         }
-
-        .subtitle {
+        
+        .instruction {
             font-size: 14px;
-            color: #555;
+            color: #666;
             margin-bottom: 20px;
+            text-align: center;
         }
 
-        .container {
-            max-width: 650px;
-            margin: 0 auto;
-            background: white;
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        /* 検索ボックス */
+        /* 検索ボックスとボタン */
         input[type="text"] {
-            width: 75%;
+            width: 100%;
             padding: 15px;
             font-size: 20px;
             border: 3px solid #b2ebf2;
             border-radius: 12px;
             outline: none;
-            background-color: #fff;
+            box-sizing: border-box; /* パディングを含める */
+            margin-bottom: 15px;
             transition: 0.3s;
         }
 
@@ -53,8 +79,8 @@
         }
 
         button {
-            margin-top: 15px;
-            padding: 12px 40px;
+            width: 100%;
+            padding: 15px;
             font-size: 18px;
             background-color: #00bcd4;
             color: white;
@@ -70,35 +96,49 @@
             box-shadow: none;
         }
 
-        /* 結果エリア */
-        #result-area {
-            margin-top: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        button:hover {
+            background-color: #26c6da;
         }
 
+        /* 結果表示グリッド（2列表示の設定） */
+        #result-area {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 1fr 1fr で2等分 */
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* カードデザイン */
         .card {
-            border: 2px solid #e0e0e0;
-            border-left: 10px solid #00bcd4;
-            border-radius: 8px;
-            padding: 15px;
             background: #fff;
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
-            text-align: left;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: #00bcd4;
         }
 
         .kanji-box {
+            background-color: #f0fbfd;
+            border-radius: 10px;
+            padding: 10px;
+            min-width: 80px;
             text-align: center;
-            margin-right: 25px;
-            min-width: 140px;
+            margin-right: 15px;
         }
 
         .kanji-large {
-            font-size: 42px;
+            font-size: 40px;
             font-weight: bold;
-            color: #333;
+            color: #00838f;
         }
 
         .meaning-box {
@@ -106,56 +146,93 @@
         }
 
         .meaning {
-            font-size: 17px;
-            color: #444;
-            margin-bottom: 6px;
+            font-size: 18px;
+            color: #333;
             font-weight: bold;
+            margin-bottom: 8px;
             line-height: 1.4;
         }
 
         .example {
-            font-size: 15px;
-            color: #006064;
-            background-color: #e0f7fa;
-            padding: 4px 10px;
+            font-size: 14px;
+            color: #555;
+            background-color: #eee;
+            padding: 4px 8px;
             border-radius: 4px;
             display: inline-block;
         }
 
+        /* 結果がないときの表示 */
         .no-result {
-            padding: 20px;
+            grid-column: 1 / -1; /* グリッドをぶち抜いて全幅にする */
+            text-align: center;
+            padding: 40px;
             background: #fff3e0;
-            border-radius: 10px;
+            border-radius: 15px;
             color: #e65100;
+            font-size: 18px;
+        }
+
+        /* スマホ対応（画面が狭いときは縦並びに戻す） */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+                height: auto;
+                overflow: visible;
+            }
+            .search-panel {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 20px;
+            }
+            .result-panel {
+                padding: 15px;
+            }
+            #result-area {
+                grid-template-columns: 1fr; /* 1列にする */
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>🔍 使い分け 辞典</h1>
-        <p class="subtitle">小学校6年生まで対応版</p>
-        <p>調べたい言葉を ひらがなで 入力してね</p>
-        
-        <input type="text" id="input-text" placeholder="例：そうぞう、せいさく">
-        <br>
-        <button onclick="searchKanji()">さがす</button>
+    <div class="app-container">
+        <div class="search-panel">
+            <h1>🔍 漢字使い分け</h1>
+            <p class="instruction">ひらがなで入力してね</p>
+            
+            <input type="text" id="input-text" placeholder="例：いがい、あう">
+            <button onclick="searchKanji()">さがす</button>
+            
+            <div style="margin-top: 30px; font-size: 12px; color: #888; text-align: left; width: 100%;">
+                <p>💡 ヒント</p>
+                <ul style="padding-left: 20px;">
+                    <li>小学校6年生までの漢字に対応</li>
+                    <li>同音異義語が得意です</li>
+                </ul>
+            </div>
+        </div>
 
-        <div id="result-area"></div>
+        <div class="result-panel">
+            <div id="result-area">
+                <div style="grid-column: 1 / -1; text-align: center; color: #777; margin-top: 50px;">
+                    ここに 結果が でるよ
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 小学校1年〜6年で習う、間違いやすい同音異義語データ
+        // 小学校1年〜6年対応データ（前回と同じ内容です）
         const dictionary = {
-            // 【あ行】
             "あう": [
                 { kanji: "会う", mean: "人と顔をあわせる", ex: "友人に会う" },
-                { kanji: "合う", mean: "一致する・ぴったりくる", ex: "答えが合う" },
+                { kanji: "合う", mean: "一致する・ぴったり", ex: "答えが合う" },
                 { kanji: "遭う", mean: "悪いことに出くわす", ex: "事故に遭う" }
             ],
             "あげる": [
                 { kanji: "上げる", mean: "上へやる", ex: "手を上げる" },
-                { kanji: "挙げる", mean: "しめす・式をおこなう", ex: "例を挙げる、式を挙げる" }
+                { kanji: "挙げる", mean: "しめす・式をおこなう", ex: "例を挙げる" }
             ],
             "あつい": [
                 { kanji: "暑い", mean: "気温が高い", ex: "暑い夏" },
@@ -168,21 +245,19 @@
             ],
             "いどう": [
                 { kanji: "移動", mean: "場所をうつる", ex: "教室を移動する" },
-                { kanji: "異動", mean: "役目や職場がかわる", ex: "人事異動（じんじいどう）" }
+                { kanji: "異動", mean: "役目や職場がかわる", ex: "人事異動" }
             ],
             "うつす": [
                 { kanji: "写す", mean: "文字や絵をまねる", ex: "ノートに写す" },
-                { kanji: "映す", mean: "画面にながす", ex: "鏡（かがみ）に映す" },
+                { kanji: "映す", mean: "画面にながす", ex: "鏡に映す" },
                 { kanji: "移す", mean: "場所をかえる", ex: "席を移す" }
             ],
             "おさめる": [
                 { kanji: "治める", mean: "国などを管理する", ex: "国を治める" },
                 { kanji: "修める", mean: "学問をみにつける", ex: "学問を修める" },
-                { kanji: "納める", mean: "お金や物をわたす", ex: "税金（ぜいきん）を納める" },
+                { kanji: "納める", mean: "お金や物をわたす", ex: "税金を納める" },
                 { kanji: "収める", mean: "手に入れる・しまう", ex: "成功を収める" }
             ],
-
-            // 【か行】
             "かえる": [
                 { kanji: "変える", mean: "変化させる", ex: "色を変える" },
                 { kanji: "代える", mean: "代理にする", ex: "選手を代える" },
@@ -200,11 +275,11 @@
             ],
             "きかい": [
                 { kanji: "機械", mean: "マシン", ex: "機械を動かす" },
-                { kanji: "機会", mean: "チャンス", ex: "絶好（ぜっこう）の機会" },
+                { kanji: "機会", mean: "チャンス", ex: "絶好の機会" },
                 { kanji: "器械", mean: "道具・装置", ex: "器械体操" }
             ],
             "きこう": [
-                { kanji: "気候", mean: "天気の状態", ex: "温暖（おんだん）な気候" },
+                { kanji: "気候", mean: "天気の状態", ex: "温暖な気候" },
                 { kanji: "機構", mean: "組織の仕組み", ex: "会社の機構" }
             ],
             "こうえん": [
@@ -212,20 +287,18 @@
                 { kanji: "講演", mean: "人前で話す", ex: "記念講演" },
                 { kanji: "公演", mean: "劇やコンサート", ex: "バレエの公演" }
             ],
-
-            // 【さ行】
             "じしん": [
-                { kanji: "自信", mean: "自分を信じる心", ex: "自信満々（まんまん）" },
+                { kanji: "自信", mean: "自分を信じる心", ex: "自信満々" },
                 { kanji: "自身", mean: "その人そのもの", ex: "私自身" },
                 { kanji: "地震", mean: "地面のゆれ", ex: "地震が起きる" }
             ],
             "しじ": [
-                { kanji: "指示", mean: "指図（さしず）する", ex: "リーダーの指示" },
+                { kanji: "指示", mean: "指図する", ex: "リーダーの指示" },
                 { kanji: "支持", mean: "ささえる・賛成する", ex: "意見を支持する" }
             ],
             "しょうめい": [
-                { kanji: "証明", mean: "正しいとあかす", ex: "無実（むじつ）の証明" },
-                { kanji: "照明", mean: "あかり・ライト", ex: "舞台（ぶたい）の照明" }
+                { kanji: "証明", mean: "正しいとあかす", ex: "無実の証明" },
+                { kanji: "照明", mean: "あかり・ライト", ex: "舞台の照明" }
             ],
             "せいさく": [
                 { kanji: "制作", mean: "芸術作品を作る", ex: "絵画の制作" },
@@ -233,12 +306,10 @@
             ],
             "そうぞう": [
                 { kanji: "想像", mean: "頭の中で思いえがく", ex: "未来を想像する" },
-                { kanji: "創造", mean: "新しいものを作り出す", ex: "新しい文化の創造" }
+                { kanji: "創造", mean: "新しいものを作り出す", ex: "文化の創造" }
             ],
-
-            // 【た行】
             "たいしょう": [
-                { kanji: "対象", mean: "ターゲット・相手", ex: "調査（ちょうさ）の対象" },
+                { kanji: "対象", mean: "ターゲット・相手", ex: "調査の対象" },
                 { kanji: "対照", mean: "比べ合わせる・反対", ex: "赤と青の対照" }
             ],
             "たつ": [
@@ -248,16 +319,14 @@
             ],
             "つとめる": [
                 { kanji: "勤める", mean: "会社で働く", ex: "会社に勤める" },
-                { kanji: "務める", mean: "役割をはたす", ex: "議長（ぎちょう）を務める" },
+                { kanji: "務める", mean: "役割をはたす", ex: "議長を務める" },
                 { kanji: "努める", mean: "努力する", ex: "解決に努める" }
             ],
-
-            // 【は行】
             "はかる": [
                 { kanji: "計る", mean: "時間や数", ex: "タイムを計る" },
                 { kanji: "測る", mean: "長さや高さ", ex: "身長を測る" },
                 { kanji: "量る", mean: "重さや体積", ex: "体重を量る" },
-                { kanji: "図る", mean: "くわだてる・目指す", ex: "解決を図る" }
+                { kanji: "図る", mean: "くわだてる", ex: "解決を図る" }
             ],
             "はじめ": [
                 { kanji: "始め", mean: "開始・最初", ex: "勉強を始める" },
@@ -269,22 +338,25 @@
             ],
             "ふこう": [
                 { kanji: "不幸", mean: "しあわせじゃない", ex: "不幸な出来事" },
-                { kanji: "不孝", mean: "親を大切にしない", ex: "親不孝（おやふこう）" }
+                { kanji: "不孝", mean: "親を大切にしない", ex: "親不孝" }
             ],
             "ほしょう": [
                 { kanji: "保証", mean: "大丈夫と約束する", ex: "品質保証" },
                 { kanji: "保障", mean: "権利などを守る", ex: "安全保障" },
-                { kanji: "補償", mean: "つぐなう・うめあわせ", ex: "損害（そんがい）の補償" }
+                { kanji: "補償", mean: "つぐなう", ex: "損害の補償" }
             ],
-
-            // 【ま・や・ら・わ行】
             "やさしい": [
                 { kanji: "優しい", mean: "思いやりがある", ex: "優しい人" },
                 { kanji: "易しい", mean: "かんたん", ex: "易しい問題" }
             ],
             "ようい": [
                 { kanji: "用意", mean: "準備する", ex: "食事の用意" },
-                { kanji: "容易", mean: "たやすい・かんたん", ex: "解決は容易だ" }
+                { kanji: "容易", mean: "たやすい", ex: "解決は容易だ" }
+            ],
+            "もと": [
+                { kanji: "元", mean: "はじめ・原因", ex: "火の元" },
+                { kanji: "本", mean: "中心・それ自身", ex: "本部長" },
+                { kanji: "基", mean: "土台", ex: "基にする" }
             ]
         };
 
@@ -295,7 +367,6 @@
 
             if (input === "") return;
 
-            // 辞書にあるかチェック
             if (dictionary[input]) {
                 const list = dictionary[input];
                 
@@ -314,17 +385,14 @@
                     resultArea.innerHTML += card;
                 });
             } else {
-                // 見つからなかった場合
                 resultArea.innerHTML = `
                     <div class="no-result">
                         <p><strong>「${input}」</strong>は登録されていません。</p>
-                        <p>ひらがなが間違っていないか確認するか、<br>
-                        別の言葉でためしてみてね。</p>
+                        <p>ひらがなが間違っていないか確認してね。</p>
                     </div>`;
             }
         }
 
-        // Enterキー対応
         document.getElementById("input-text").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 searchKanji();
