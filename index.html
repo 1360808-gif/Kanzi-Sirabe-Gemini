@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字サクサク検索（送り仮名対応版）</title>
+    <title>漢字サクサク検索（学年表示版）</title>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
@@ -15,11 +15,17 @@
         input[type="text"] { width: 100%; padding: 15px; font-size: 20px; border: 3px solid #ffcc80; border-radius: 12px; outline: none; box-sizing: border-box; margin-bottom: 15px; font-family: inherit; }
         button { width: 100%; padding: 15px; font-size: 18px; background-color: #e67e22; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #d35400; }
         #result-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
-        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; }
+        
+        /* カードと学年バッジのスタイル */
+        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; position: relative; }
         .card.has-meaning { border-left-color: #e67e22; }
         .card.no-meaning { border-left-color: #bdc3c7; }
+        
+        .grade-badge { position: absolute; top: 10px; right: 10px; background: #fdf2e9; color: #e67e22; border: 1px solid #ffcc80; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+
         .kanji-large { font-family: 'Klee One', cursive; font-size: 56px; font-weight: 600; color: #2c3e50; margin-bottom: 10px; text-align: center; word-break: break-all; }
         .meaning { font-size: 16px; color: #444; background-color: #fff9f0; padding: 12px; border-radius: 8px; line-height: 1.4; font-weight: bold; }
+        
         @media (max-width: 768px) { .app-container { flex-direction: column; height: auto; } .search-panel { width: 100%; } }
     </style>
 </head>
@@ -28,11 +34,11 @@
     <div class="app-container">
         <div class="search-panel">
             <h1>🖋️ かんじ練習じしょ</h1>
-            <input type="text" id="input-text" placeholder="例：あう、会う、走る">
+            <input type="text" id="input-text" placeholder="例：あう、走る">
             <button onclick="searchKanji()">さがす</button>
             <div style="font-size: 11px; color: #666; margin-top: 20px; line-height: 1.6;">
-                <p>💡 使い方</p>
-                <p>・「送り仮名」を入れてもOK！<br>・漢字を入れると、同じ読みの漢字も一緒に探します。</p>
+                <p>■ オレンジ：同音異義語あり<br>■ グレー：漢字のみ</p>
+                <p>※右上の「小1〜6」は習う学年です。</p>
             </div>
         </div>
         <div class="result-panel">
@@ -41,10 +47,20 @@
     </div>
 
     <script>
+        // 学年別漢字リスト（教育漢字 1026字）
+        const kanjiByGrade = {
+            1: "一右雨円王音下火花貝学気休吸玉金空月犬見口校左三山子四糸字耳七車手十出女小上森人水正生青夕石赤千川先早足村大男竹中虫町天田土二日入年白八百文木本名目立力林六",
+            2: "引羽雲園遠何科夏家歌画回会海絵外角楽活間丸岩顔汽記帰弓牛魚京強教近兄形計元言原戸古午後語工公広交光考行高黄合谷国黒今才細作算止市矢姉思紙寺自時室社弱首秋週春書少場色食心新親図数西声星晴切雪船線前組走多太体台地池知茶昼長鳥朝直通弟店点電刀当冬父頭答同道読内南肉馬売買麦半番父風分聞米歩母方北毎妹万明鳴毛門夜野友用曜羊来藍理里立陸録話",
+            3: "悪安暗医委意育員院飲運泳駅央横屋温化荷界開階寒感漢館岸起期客記紀喜基寄規喜技義議客去橋業局曲局極銀区苦具君係軽血決研県庫湖向幸港号根祭皿仕死使始指歯詩次事持式実写者主守取酒受州拾終習集住重宿所暑助昭消商章勝乗植申身神真深進世整昔全相送想息速族他打対待代第題炭短談着注柱丁帳調追定庭笛鉄転都度投豆島湯登等動童内波配倍箱畑発反坂板皮番板非飛備鼻筆氷表秒病品負部服福物平返勉放味命面問役薬由油有遊予羊葉陽様落流旅両緑礼列練路和",
+            4: "愛案以衣位囲胃印英栄塩億加果貨課芽改械害街各覚完官管関観願希季紀喜旗器機議求泣給挙漁共協鏡競極訓軍郡径型景芸欠結建健験固候功巧好康航告差最菜祭材昨札刷殺察参産散残士氏史司試児治辞失借種周祝順初松笑唱焼象照賞臣信真成静勢清聖席積折節説浅戦選然争相倉想像速側続卒孫隊帯待貸態滞退大代第題宅建単置仲貯兆腸低底停的典伝徒努灯堂働特得毒独熱念燃能望波敗倍博飯飛費非備鼻必姫標票不付府副粉兵別辺変便包法望牧末満未脈民無約勇要養浴利陸良料量輪類令冷例歴連老労録",
+            5: "圧囲移因永営衛易益液演応往桜恩可仮価河過賀快解格確額刊幹慣眼基寄規技義逆久旧居許境均禁句群軍系型経潔件券険検限現減源厳己呼誤個後御効構耕講鉱混査再災採際在材罪財昨殺雑酸参散算賛残士支志至視詞誌磁私次識実写謝若寂主守取種酒首儒授受州拾終習集住重宿祝術準序除傷承省称商賞章証象照情状織職制性政勢精製税責績接設舌絶銭鮮前善漸然全祖素窓創葬層総操増造像即促俗属賊存遜他多太対貸態代滞台大第題拓沢託濁諾達単担探淡炭短断暖段地知遅痴稚置致築蓄逐竹蓄築逐仲柱注駐著貯丁兆張帳庁鳥朝町調長頂直通痛低呈定邸庭艇訂適笛鉄典天展店点伝田電土徒都度渡土島投等答塔頭闘動童道働特得独読凸突届屯豚曇鈍奈内那南軟難二肉日如乳入任忍認熱年燃能悩濃納能脳農",
+            6: "遺域宇映延沿我灰拡閣革割株干看簡危机揮貴疑吸供胸郷勤筋系敬警劇激穴絹権憲源厳己呼誤后孝皇紅降鋼刻穀骨困砂座済裁策冊蚕至私姿視詞誌磁射捨尺若樹収宗就衆従縦縮熟純処署諸除将傷障城蒸針仁垂推寸聖誠宣専泉洗染善奏窓創装層操蔵臓存尊宅担探誕生段暖値宙忠著庁頂潮賃痛展討党糖届難乳認納脳派拝背肺俳班晩否批秘陛閉片補暮宝訪亡忘棒枚幕密盟模訳郵優預欲翌乱卵覧裏律臨朗論"
+        };
+
         const dictionary = {
             "あう": [{kanji:"会う", mean:"人と会う"}, {kanji:"合う", mean:"同じになる"}, {kanji:"遭う", mean:"悪いことにあう"}],
             "あける": [{kanji:"開ける", mean:"ドアをひらく"}, {kanji:"空ける", mean:"からにする"}, {kanji:"明ける", mean:"明るくなる"}],
-            "あがる": [{kanji:"上がる", mean:"上へいく"}, {kanji:"挙がる", mean:"手があがる"}],
+            "あつまる": [{kanji:"集まる", mean:"一か所にくる"}],
             "あつい": [{kanji:"暑い", mean:"気温が高い"}, {kanji:"熱い", mean:"温度が高い"}, {kanji:"厚い", mean:"厚みがある"}],
             "あらわす": [{kanji:"表す", mean:"言葉にする"}, {kanji:"現す", mean:"姿を見せる"}, {kanji:"著す", mean:"本を書く"}],
             "おくる": [{kanji:"送る", mean:"届ける"}, {kanji:"贈る", mean:"プレゼント"}],
@@ -57,14 +73,31 @@
             "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"しんせつ"}]
         };
 
+        // 学年を判定する関数
+        function getGradeLabel(str) {
+            let maxGrade = 0;
+            let hasKanji = false;
+            for (let char of str) {
+                if (/[一-龠]/.test(char)) {
+                    hasKanji = true;
+                    for (let g = 1; g <= 6; g++) {
+                        if (kanjiByGrade[g].includes(char)) {
+                            maxGrade = Math.max(maxGrade, g);
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!hasKanji) return ""; // 漢字がない場合は何も表示しない
+            return maxGrade > 0 ? `小${maxGrade}` : "学外";
+        }
+
         async function searchKanji() {
             const input = document.getElementById('input-text').value.trim();
             const resultArea = document.getElementById('result-area');
             if (input === "") return;
-            
             resultArea.innerHTML = '';
             
-            // 1. 読み（ひらがな）を特定する（逆引き）
             let targetReading = null;
             if (dictionary[input]) {
                 targetReading = input;
@@ -77,17 +110,12 @@
                 }
             }
 
-            // 2. 表示処理
             if (targetReading) {
-                // 辞書にある場合：セットですべて表示
                 dictionary[targetReading].forEach(item => createCard(item.kanji, item.mean));
             } else {
-                // 辞書にない場合
                 if (/[一-龠]/.test(input)) {
-                    // 漢字が含まれていたら、送り仮名ごとそのまま表示
                     createCard(input, null);
                 } else {
-                    // ひらがなのみならAPIで変換
                     await searchFromAPI(input);
                 }
             }
@@ -110,11 +138,12 @@
         function createCard(kanji, mean) {
             const hasMeaning = (mean != null);
             const cardClass = hasMeaning ? "card has-meaning" : "card no-meaning";
-            // 漢字の文字数が多い場合は少しフォントサイズを小さく調整
-            const fontSize = kanji.length > 4 ? "40px" : "56px";
+            const gradeLabel = getGradeLabel(kanji); // 学年を取得
+            const fontSize = kanji.length > 4 ? "36px" : "56px";
 
             const html = `
                 <div class="${cardClass}">
+                    ${gradeLabel ? `<div class="grade-badge">${gradeLabel}</div>` : ""}
                     <div class="kanji-large" style="font-size: ${fontSize}">${kanji}</div>
                     ${hasMeaning ? `<div class="meaning">${mean}</div>` : ""}
                 </div>
