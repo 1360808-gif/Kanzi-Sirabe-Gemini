@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字サクサク検索（手書き風フォント版）</title>
+    <title>漢字サクサク検索（半角カナなし版）</title>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
         body { 
-            font-family: 'Zen Maru Gothic', sans-serif; /* 全体は丸みのある読みやすいフォント */
+            font-family: 'Zen Maru Gothic', sans-serif; 
             background-color: #fdfaf5; 
             margin: 0; 
             padding: 0; 
@@ -27,14 +27,13 @@
         
         #result-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
         
-        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; transition: 0.2s; }
+        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; }
         .card.has-meaning { border-left-color: #e67e22; }
         .card.no-meaning { border-left-color: #bdc3c7; }
 
-        /* ここが手書き風フォントの指定 */
         .kanji-large { 
             font-family: 'Klee One', cursive; 
-            font-size: 64px; /* 少し大きくしました */
+            font-size: 64px; 
             font-weight: 600;
             color: #2c3e50; 
             margin-bottom: 10px;
@@ -54,8 +53,8 @@
             <input type="text" id="input-text" placeholder="ひらがなを入力">
             <button onclick="searchKanji()">さがす</button>
             <div style="font-size: 11px; color: #666; margin-top: 20px; line-height: 1.6;">
-                <p>■ オレンジ：使い分けあり<br>■ グレー：自動変換</p>
-                <p>※正しい書き順を意識しやすいフォントにしています。</p>
+                <p>■ オレンジ：使い分け（1-6年）<br>■ グレー：自動変換</p>
+                <p>※半角カタカナは表示しません。</p>
             </div>
         </div>
         <div class="result-panel">
@@ -64,6 +63,7 @@
     </div>
 
     <script>
+        // 小学校全学年の主要データ（維持）
         const dictionary = {
             "あう": [{kanji:"会う", mean:"人とあう"}, {kanji:"合う", mean:"形や数が同じになる"}, {kanji:"遭う", mean:"悪いことに出あう"}],
             "あける": [{kanji:"開ける", mean:"ドアなどをひらく"}, {kanji:"空ける", mean:"中身をからにする"}, {kanji:"明ける", mean:"明るくなる・終わる"}],
@@ -81,22 +81,34 @@
             "はかる": [{kanji:"計る", mean:"時間・数"}, {kanji:"測る", mean:"長さ・高さ"}, {kanji:"量る", mean:"重さ・体積"}, {kanji:"図る", mean:"計画する"}, {kanji:"謀る", mean:"たくらむ"}],
             "はやい": [{kanji:"早い", mean:"時間がはやい"}, {kanji:"速い", mean:"スピードがはやい"}],
             "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"親切・やさしい"}]
-            // 他の語句も同様に保持...
         };
 
         async function searchKanji() {
             const input = document.getElementById('input-text').value.trim();
             const resultArea = document.getElementById('result-area');
             if (input === "") return;
+            
             resultArea.innerHTML = '';
+            
+            // 1. 登録済み辞書の検索
             if (dictionary[input]) {
                 dictionary[input].forEach(item => createCard(item.kanji, item.mean));
             } else {
+                // 2. 自動変換APIの検索
                 try {
                     const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${input}`);
                     const data = await res.json();
+                    
                     if (data && data[0] && data[0][1]) {
-                        data[0][1].slice(0, 5).forEach(kanji => {
+                        // 【修正】半角カタカナが含まれているか判定する関数
+                        const isHalfKana = (str) => {
+                            return /[\uFF61-\uFF9F]/.test(str);
+                        };
+
+                        // 半角カタカナを除去して、上位5つを表示
+                        const filteredCandidates = data[0][1].filter(kanji => !isHalfKana(kanji));
+
+                        filteredCandidates.slice(0, 5).forEach(kanji => {
                             if (kanji !== input) createCard(kanji, null);
                         });
                     }
