@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字サクサク検索（ふりがな付）</title>
+    <title>漢字サクサク検索（熟語ルビ対応）</title>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
@@ -17,21 +17,19 @@
         
         #result-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
         
-        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; position: relative; margin-top: 10px; }
+        .card { background: #fff; border-radius: 15px; padding: 25px 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; position: relative; margin-top: 15px; }
         .card.has-meaning { border-left-color: #e67e22; }
         .card.no-meaning { border-left-color: #bdc3c7; }
         
-        /* 学年バッジ */
         .grade-badge { position: absolute; top: -12px; right: 10px; background: #e67e22; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .no-meaning .grade-badge { background: #95a5a6; }
 
-        /* ルビの調整 */
+        /* ルビの見た目を調整 */
         ruby { ruby-align: center; }
-        rt { font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.35em; color: #e67e22; font-weight: bold; letter-spacing: 0.1em; }
+        rt { font-family: 'Zen Maru Gothic', sans-serif; font-size: 0.3em; color: #e67e22; font-weight: bold; letter-spacing: 0.1em; padding-bottom: 2px; }
         .no-meaning rt { color: #7f8c8d; }
 
-        .kanji-large { font-family: 'Klee One', cursive; font-size: 56px; font-weight: 600; color: #2c3e50; margin-bottom: 10px; text-align: center; word-break: break-all; line-height: 1.2; }
-        .meaning { font-size: 18px; color: #444; background-color: #fff9f0; padding: 12px; border-radius: 8px; line-height: 1.8; font-weight: bold; text-align: center; }
+        .kanji-large { font-family: 'Klee One', cursive; font-size: 56px; font-weight: 600; color: #2c3e50; text-align: center; word-break: break-all; line-height: 1.5; }
+        .meaning { font-size: 18px; color: #444; background-color: #fff9f0; padding: 12px; border-radius: 8px; line-height: 1.8; font-weight: bold; text-align: center; margin-top: 10px; }
         
         @media (max-width: 768px) { .app-container { flex-direction: column; height: auto; } .search-panel { width: 100%; } }
     </style>
@@ -40,12 +38,11 @@
 
     <div class="app-container">
         <div class="search-panel">
-            <h1>🖋️ かんじ練習じしょ</h1>
-            <input type="text" id="input-text" placeholder="例：あう、走る">
+            <h1>🖋️ かんじ熟語じしょ</h1>
+            <input type="text" id="input-text" placeholder="例：きかい、記者">
             <button onclick="searchKanji()">さがす</button>
             <div style="font-size: 11px; color: #666; margin-top: 20px; line-height: 1.6;">
-                <p>■ オレンジ：使い分け<br>■ グレー：漢字のみ</p>
-                <p>すべてに「ふりがな」がつきます。</p>
+                <p>■ 熟語にも「ふりがな」がつきます。<br>■ 同じ読みの熟語も自動で探します。</p>
             </div>
         </div>
         <div class="result-panel">
@@ -54,32 +51,34 @@
     </div>
 
     <script>
-        // 1〜6年生の主要データ（ルビ情報付き）
+        // 熟語を含めた辞書データ（すべてルビ情報付き）
         const dictionary = {
+            "きかい": [
+                {kanji:"機械", r:"きかい", m:"マシンのこと"},
+                {kanji:"機会", r:"きかい", m:"チャンスのこと"},
+                {kanji:"器械", r:"きかい", m:"とび<ruby>箱<rt>ばこ</rt></ruby>などの<ruby>道具<rt>どうぐ</rt></ruby>"}
+            ],
+            "きしゃ": [
+                {kanji:"記者", r:"きしゃ", m:"ニュースを<ruby>書<rt>か</rt></ruby>く<ruby>人<rt>ひと</rt></ruby>"},
+                {kanji:"汽車", r:"きしゃ", m:"シュッポッポと<ruby>走<rt>はし</rt></ruby>る<ruby>列車<rt>れっしゃ</rt></ruby>"},
+                {kanji:"貴社", r:"きしゃ", m:"あいての<ruby>会社<rt>かいしゃ</rt></ruby>のこと"}
+            ],
+            "こうえん": [
+                {kanji:"公園", r:"こうえん", m:"あそべるひろば"},
+                {kanji:"講演", r:"こうえん", m:"ためになるお<ruby>話<rt>はなし</rt></ruby>"},
+                {kanji:"公演", r:"こうえん", m:"ステージでの<ruby>発表<rt>はっぴょう</rt></ruby>"}
+            ],
+            "かんじ": [
+                {kanji:"漢字", r:"かんじ", m:"日本の<ruby>文字<rt>もじ</rt></ruby>"},
+                {kanji:"感じ", r:"かんじ", m:"こころにうかぶこと"},
+                {kanji:"幹事", r:"かんじ", m:"みんなのまとめ<ruby>役<rt>やく</rt></ruby>"}
+            ],
             "あう": [
                 {kanji:"会う", r:"あう", m:"<ruby>人<rt>ひと</rt></ruby>に<ruby>会<rt>あ</rt></ruby>う"},
-                {kanji:"合う", r:"あう", m:"サイズや<ruby>数<rt>かず</rt></ruby>が<ruby>合<rt>あ</rt></ruby>う"},
+                {kanji:"合う", r:"あう", m:"サイズが<ruby>合<rt>あ</rt></ruby>う"},
                 {kanji:"遭う", r:"あう", m:"ひどい<ruby>目<rt>め</rt></ruby>に<ruby>遭<rt>あ</rt></ruby>う"}
-            ],
-            "あける": [
-                {kanji:"開ける", r:"あける", m:"ドアを<ruby>開<rt>あ</rt></ruby>ける"},
-                {kanji:"空ける", r:"あける", m:"<ruby>席<rt>せき</rt></ruby>を<ruby>空<rt>あ</rt></ruby>ける"},
-                {kanji:"明ける", r:"あける", m:"<ruby>夜<rt>よ</rt></ruby>が<ruby>明<rt>あ</rt></ruby>ける"}
-            ],
-            "あつい": [
-                {kanji:"暑い", r:"あつい", m:"<ruby>気温<rt>きおん</rt></ruby>が<ruby>暑<rt>あ</rt></ruby>い"},
-                {kanji:"熱い", r:"あつい", m:"お<ruby>湯<rt>ゆ</rt></ruby>が<ruby>熱<rt>あ</rt></ruby>い"},
-                {kanji:"厚い", r:"あつい", m:"<ruby>本<rt>ほん</rt></ruby>が<ruby>厚<rt>あ</rt></ruby>い"}
-            ],
-            "はやい": [
-                {kanji:"早い", r:"はやい", m:"<ruby>時間<rt>じかん</rt></ruby>が<ruby>早<rt>はや</rt></ruby>い"},
-                {kanji:"速い", r:"はやい", m:"スピードが<ruby>速<rt>はや</rt></ruby>い"}
-            ],
-            "やさしい": [
-                {kanji:"易しい", r:"やさしい", m:"もんだいが<ruby>易<rt>やさ</rt></ruby>しい"},
-                {kanji:"優しい", r:"やさしい", m:"<ruby>人<rt>ひと</rt></ruby>に<ruby>優<rt>やさ</rt></ruby>しい"}
             ]
-            // 他の語句も同様に構成
+            // 他の1〜6年生の熟語・単語も同様に登録...
         };
 
         const kanjiByGrade = {
@@ -88,7 +87,7 @@
             3: "悪安暗医委意育員院飲運泳駅央横屋温化荷界開階寒感漢館岸起期客記紀喜基寄規喜技義議客去橋業局曲局極銀区苦具君係軽血決研県庫湖向幸港号根祭皿仕死使始指歯詩次事持式実写者主守取酒受州拾終習集住重宿所暑助昭消商章勝乗植申身神真深進世整昔全相送想息速族他打対待代第題炭短談着注柱丁帳調追定庭笛鉄転都度投豆島湯登等動童内波配倍箱畑発反坂板皮番板非飛備鼻筆氷表秒病品負部服福物平返勉放味命面問役薬由油有遊予羊葉陽様落流旅両緑礼列練路和",
             4: "愛案以衣位囲胃印英栄塩億加果貨課芽改械害街各覚完官管関観願希季紀喜旗器機議求泣給挙漁共協鏡競極訓軍郡径型景芸欠結建健験固候功巧好康航告差最菜祭材昨札刷殺察参産散残士氏史司試児治辞失借種周祝順初松笑唱焼象照賞臣信真成静勢清聖席積折節説浅戦選然争相倉想像速側続卒孫隊帯待貸態滞退大代第題宅建単置仲貯兆腸低底停的典伝徒努灯堂働特得毒独熱念燃能望波敗倍博飯飛費非備鼻必姫標票不付府副粉兵別辺変便包法望牧末満未脈民無約勇要養浴利陸良料量輪類令冷例歴連老労録",
             5: "圧囲移因永営衛易益液演応往桜恩可仮価河過賀快解格確額刊幹慣眼基寄規技義逆久旧居許境均禁句群軍系型経潔件券険検限現減源厳己呼誤個後御効構耕講鉱混査再災採際在材罪財昨殺雑酸参散算賛残士支志至視詞誌磁私次識実写謝若寂主守取種酒首儒授受州拾終習集住重宿祝術準序除傷承省称商賞章証象照情状織職制性政勢精製税責績接設舌絶銭鮮前善漸然全祖素窓創葬層総操増造像即促俗属賊存遜他多太対貸態代滞台大第題拓沢託濁諾達単担探淡炭短断暖段地知遅痴稚置致築蓄逐竹蓄築逐仲柱注駐著貯丁兆張帳庁鳥朝町調長頂直通痛低呈定邸庭艇訂適笛鉄典天展店点伝田電土徒都度渡土島投等答塔頭闘動童道働特得独読凸突届屯豚曇鈍奈内那南軟難二肉日如乳入任忍認熱年燃能悩濃納能脳農",
-            6: "遺域宇映延沿我灰拡閣革割株干看簡危机揮貴疑吸供胸郷勤筋系敬景警劇激穴絹権憲源厳己呼誤后孝皇紅降鋼刻穀骨困砂座済裁策冊蚕至私姿視詞誌磁射捨尺若樹収宗就衆従縦縮熟純処署諸除将傷障城蒸針仁垂推寸聖誠宣専泉洗染善奏窓創装層操蔵臓存尊宅担探誕生段暖値宙忠著庁頂潮賃痛展討党糖届難乳認納脳派拝背肺俳班晩否批秘陛閉片補暮宝訪亡忘棒枚幕密盟模訳郵優預欲翌乱卵覧裏律臨朗論"
+            6: "遺域宇映延沿我灰拡閣革割株干看簡危机揮貴疑吸供胸郷勤筋系敬警劇激穴絹権憲源厳己呼誤后孝皇紅降鋼刻穀骨困砂座済裁策冊蚕至私姿視詞誌磁射捨尺若樹収宗就衆従縦縮熟純処署諸除将傷障城蒸針仁垂推寸聖誠宣専泉洗染善奏窓創装層操蔵臓存尊宅担探誕生段暖値宙忠著庁頂潮賃痛展討党糖届難乳認納脳派拝背肺俳班晩否批秘陛閉片補暮宝訪亡忘棒枚幕密盟模訳郵優預欲翌乱卵覧裏律臨朗論"
         };
 
         function getGradeLabel(str) {
@@ -128,26 +127,38 @@
             }
 
             if (targetReading) {
-                // 辞書にある場合：ルビ付きで表示
                 dictionary[targetReading].forEach(item => createCard(item.kanji, targetReading, item.m));
             } else {
                 if (/[一-龠]/.test(input)) {
-                    createCard(input, "", null);
+                    // 漢字入力だが辞書にない場合：読みをAPIで取得してルビを振る
+                    await searchFromAPI(null, input);
                 } else {
-                    await searchFromAPI(input);
+                    // ひらがな入力で辞書にない場合
+                    await searchFromAPI(input, null);
                 }
             }
         }
 
-        async function searchFromAPI(hira) {
+        async function searchFromAPI(hira, kanji) {
+            const query = hira || kanji;
             try {
-                const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${hira}`);
+                // Google APIで読み/変換候補を取得
+                const pair = hira ? "ja-Hira|ja" : "ja|ja-Hira";
+                const res = await fetch(`https://www.google.com/transliterate?langpair=${pair}&text=${query}`);
                 const data = await res.json();
+                
                 if (data && data[0] && data[0][1]) {
-                    const filtered = data[0][1].filter(kanji => !/[\uFF61-\uFF9F]/.test(kanji));
-                    filtered.slice(0, 5).forEach(kanji => {
-                        if (kanji !== hira) createCard(kanji, hira, null);
-                    });
+                    const filtered = data[0][1].filter(cand => !/[\uFF61-\uFF9F]/.test(cand));
+                    
+                    if (kanji) {
+                        // 漢字入力の場合：取得した「読み」をルビにして表示
+                        createCard(kanji, filtered[0], null);
+                    } else {
+                        // ひらがな入力の場合：変換候補を表示
+                        filtered.slice(0, 5).forEach(cand => {
+                            if (cand !== hira) createCard(cand, hira, null);
+                        });
+                    }
                 }
             } catch (e) { console.error(e); }
         }
@@ -158,7 +169,7 @@
             const gradeLabel = getGradeLabel(kanji);
             const fontSize = kanji.length > 4 ? "36px" : "56px";
 
-            // 漢字にルビをふる（読みがわかる場合のみ）
+            // 熟語全体に読み（ルビ）を振る
             const displayKanji = reading ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
 
             const html = `
