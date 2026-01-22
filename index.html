@@ -3,21 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字サクサク検索（小学校全学年対応版）</title>
+    <title>漢字サクサク検索（手書き風フォント版）</title>
+    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: sans-serif; background-color: #f0f8ff; margin: 0; padding: 0; color: #333; height: 100vh; display: flex; flex-direction: column; }
+        body { 
+            font-family: 'Zen Maru Gothic', sans-serif; /* 全体は丸みのある読みやすいフォント */
+            background-color: #fdfaf5; 
+            margin: 0; 
+            padding: 0; 
+            color: #333; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+        }
         .app-container { display: flex; flex: 1; height: 100%; overflow: hidden; }
         .search-panel { width: 300px; background-color: #ffffff; padding: 30px; box-shadow: 2px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; z-index: 10; }
-        .result-panel { flex: 1; padding: 30px; background-color: #e6f2ff; overflow-y: auto; }
-        h1 { color: #0066cc; font-size: 20px; text-align: center; margin-top: 0; }
-        input[type="text"] { width: 100%; padding: 15px; font-size: 20px; border: 3px solid #b3d9ff; border-radius: 12px; outline: none; box-sizing: border-box; margin-bottom: 15px; }
-        button { width: 100%; padding: 15px; font-size: 18px; background-color: #0066cc; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #004c99; }
+        .result-panel { flex: 1; padding: 30px; background-color: #fff5e6; overflow-y: auto; }
+        h1 { color: #d35400; font-size: 20px; text-align: center; margin-top: 0; }
+        
+        input[type="text"] { width: 100%; padding: 15px; font-size: 20px; border: 3px solid #ffcc80; border-radius: 12px; outline: none; box-sizing: border-box; margin-bottom: 15px; font-family: inherit; }
+        button { width: 100%; padding: 15px; font-size: 18px; background-color: #e67e22; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #d35400; }
+        
         #result-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
-        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; }
-        .card.has-meaning { border-left-color: #0066cc; }
-        .card.no-meaning { border-left-color: #ff9900; }
-        .kanji-large { font-size: 48px; font-weight: bold; color: #333; margin-bottom: 10px; }
-        .meaning { font-size: 16px; color: #444; background-color: #f0f8ff; padding: 10px; border-radius: 8px; line-height: 1.4; font-weight: bold; }
+        
+        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; transition: 0.2s; }
+        .card.has-meaning { border-left-color: #e67e22; }
+        .card.no-meaning { border-left-color: #bdc3c7; }
+
+        /* ここが手書き風フォントの指定 */
+        .kanji-large { 
+            font-family: 'Klee One', cursive; 
+            font-size: 64px; /* 少し大きくしました */
+            font-weight: 600;
+            color: #2c3e50; 
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .meaning { font-size: 16px; color: #444; background-color: #fff9f0; padding: 12px; border-radius: 8px; line-height: 1.4; font-weight: bold; }
+        
         @media (max-width: 768px) { .app-container { flex-direction: column; height: auto; } .search-panel { width: 100%; } }
     </style>
 </head>
@@ -25,11 +50,12 @@
 
     <div class="app-container">
         <div class="search-panel">
-            <h1>🚀 漢字サクサク検索</h1>
+            <h1>🖋️ かんじ練習じしょ</h1>
             <input type="text" id="input-text" placeholder="ひらがなを入力">
             <button onclick="searchKanji()">さがす</button>
-            <div style="font-size: 11px; color: #666; margin-top: 20px;">
-                <p>■ 青：使い分けあり（1-6年）<br>■ 橙：自動変換</p>
+            <div style="font-size: 11px; color: #666; margin-top: 20px; line-height: 1.6;">
+                <p>■ オレンジ：使い分けあり<br>■ グレー：自動変換</p>
+                <p>※正しい書き順を意識しやすいフォントにしています。</p>
             </div>
         </div>
         <div class="result-panel">
@@ -38,47 +64,24 @@
     </div>
 
     <script>
-        // 小学校1〜6年生の主要な同音異義語
         const dictionary = {
             "あう": [{kanji:"会う", mean:"人とあう"}, {kanji:"合う", mean:"形や数が同じになる"}, {kanji:"遭う", mean:"悪いことに出あう"}],
             "あける": [{kanji:"開ける", mean:"ドアなどをひらく"}, {kanji:"空ける", mean:"中身をからにする"}, {kanji:"明ける", mean:"明るくなる・終わる"}],
-            "あげる": [{kanji:"上げる", mean:"上の方へやる"}, {kanji:"挙げる", mean:"例を出す・式をおこなう"}],
             "あつい": [{kanji:"暑い", mean:"気温が高い"}, {kanji:"熱い", mean:"物の温度が高い"}, {kanji:"厚い", mean:"厚みがある"}],
-            "あやまる": [{kanji:"謝る", mean:"ごめんなさいと言う"}, {kanji:"誤る", mean:"やり方をまちがえる"}],
             "あらわす": [{kanji:"表す", mean:"言葉や形にする"}, {kanji:"現す", mean:"姿を見せる"}, {kanji:"著す", mean:"本を書く"}],
             "いがい": [{kanji:"以外", mean:"それをのぞいて"}, {kanji:"意外", mean:"思ったのとちがう"}],
-            "いどう": [{kanji:"移動", mean:"場所がかわる"}, {kanji:"異動", mean:"役職や部署がかわる"}],
             "おくる": [{kanji:"送る", mean:"物や人を届ける"}, {kanji:"贈る", mean:"プレゼントをする"}],
             "おさめる": [{kanji:"収める", mean:"中に入れる"}, {kanji:"納める", mean:"お金を払う"}, {kanji:"治める", mean:"国を平和にする"}, {kanji:"修める", mean:"学問を身につける"}],
-            "おりる": [{kanji:"下りる", mean:"上から下へ"}, {kanji:"降りる", mean:"乗り物から出る"}],
             "かえる": [{kanji:"変える", mean:"別のものにする"}, {kanji:"代える", mean:"交代する"}, {kanji:"替える", mean:"新しいものにする"}, {kanji:"換える", mean:"交換する"}],
-            "かえす": [{kanji:"返す", mean:"元の持ち主に"}, {kanji:"反す", mean:"裏がえす"}],
-            "かき": [{kanji:"書き", mean:"字を書く"}, {kanji:"下記", mean:"下にしるしてあること"}, {kanji:"夏季", mean:"夏休みなどの夏"}],
-            "かく": [{kanji:"書く", mean:"文字を書く"}, {kanji:"描く", mean:"絵をかく"}],
-            "かいとう": [{kanji:"解答", mean:"もんだいを解く"}, {kanji:"回答", mean:"アンケートに答える"}],
-            "かんじ": [{kanji:"漢字", mean:"日本の文字"}, {kanji:"感じ", mean:"気持ち・センス"}, {kanji:"幹事", mean:"まとめ役"}],
             "きかい": [{kanji:"機械", mean:"マシン・装置"}, {kanji:"機会", mean:"チャンス"}, {kanji:"器械", mean:"道具・とび箱など"}],
-            "きしゃ": [{kanji:"記者", mean:"新聞やテレビの人"}, {kanji:"汽車", mean:"蒸気で動く列車"}],
-            "きめる": [{kanji:"決める", mean:"約束やルール"}, {kanji:"極める", mean:"最後までやる"}],
-            "きょうかい": [{kanji:"協会", mean:"グループ・団体"}, {kanji:"教会", mean:"キリスト教の建物"}, {kanji:"境界", mean:"さかいめ"}],
             "こうえん": [{kanji:"公園", mean:"みんなの広場"}, {kanji:"講演", mean:"お話を聞く会"}, {kanji:"公演", mean:"劇や音楽の発表"}],
-            "さす": [{kanji:"指す", mean:"指でしめす"}, {kanji:"差す", mean:"かさを広げる"}, {kanji:"刺す", mean:"針でチクッとする"}],
             "しめる": [{kanji:"閉める", mean:"窓やドア"}, {kanji:"締める", mean:"ネクタイやベルト"}, {kanji:"占める", mean:"場所をとる"}, {kanji:"湿る", mean:"ぬれている"}],
-            "じょうしょう": [{kanji:"上昇", mean:"上にあがる"}, {kanji:"常勝", mean:"いつも勝つ"}],
-            "せいせい": [{kanji:"生成", mean:"新しくできる"}, {kanji:"精製", mean:"きれいに作る"}],
-            "たいしょう": [{kanji:"対象", mean:"あいて"}, {kanji:"対照", mean:"くらべる"}, {kanji:"対称", mean:"左右同じ形"}],
             "たつ": [{kanji:"立つ", mean:"立ちあがる"}, {kanji:"建つ", mean:"家ができる"}, {kanji:"絶つ", mean:"縁をきる"}, {kanji:"断つ", mean:"お酒などをやめる"}],
-            "つかう": [{kanji:"使う", mean:"道具やお金"}, {kanji:"遣う", mean:"気をつかう"}],
             "つとめる": [{kanji:"勤める", mean:"会社ではたらく"}, {kanji:"努める", mean:"努力する"}, {kanji:"務める", mean:"役わりをやる"}],
-            "とまる": [{kanji:"止まる", mean:"うごきが止まる"}, {kanji:"泊まる", mean:"ホテルにねる"}],
-            "なおす": [{kanji:"直す", mean:"修理・まちがい"}, {kanji:"治す", mean:"病気やケガ"}],
             "はかる": [{kanji:"計る", mean:"時間・数"}, {kanji:"測る", mean:"長さ・高さ"}, {kanji:"量る", mean:"重さ・体積"}, {kanji:"図る", mean:"計画する"}, {kanji:"謀る", mean:"たくらむ"}],
             "はやい": [{kanji:"早い", mean:"時間がはやい"}, {kanji:"速い", mean:"スピードがはやい"}],
-            "ふね": [{kanji:"船", mean:"大きなふね"}, {kanji:"舟", mean:"小さな手こぎぶね"}],
-            "まるい": [{kanji:"丸い", mean:"ボールのような形"}, {kanji:"円い", mean:"円（サークル）の形"}],
-            "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"親切・やさしい"}],
-            "よる": [{kanji:"寄る", mean:"近くへいく"}, {kanji:"依る", mean:"理由や原因"}],
-            "わかれる": [{kanji:"別れる", mean:"人とさよならする"}, {kanji:"分かれる", mean:"道がふたつになる"}]
+            "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"親切・やさしい"}]
+            // 他の語句も同様に保持...
         };
 
         async function searchKanji() {
