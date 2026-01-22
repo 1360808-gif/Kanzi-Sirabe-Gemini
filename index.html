@@ -3,45 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字サクサク検索（半角カナなし版）</title>
+    <title>漢字サクサク検索（送り仮名対応版）</title>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        body { 
-            font-family: 'Zen Maru Gothic', sans-serif; 
-            background-color: #fdfaf5; 
-            margin: 0; 
-            padding: 0; 
-            color: #333; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-        }
+        body { font-family: 'Zen Maru Gothic', sans-serif; background-color: #fdfaf5; margin: 0; padding: 0; color: #333; height: 100vh; display: flex; flex-direction: column; }
         .app-container { display: flex; flex: 1; height: 100%; overflow: hidden; }
         .search-panel { width: 300px; background-color: #ffffff; padding: 30px; box-shadow: 2px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; z-index: 10; }
         .result-panel { flex: 1; padding: 30px; background-color: #fff5e6; overflow-y: auto; }
         h1 { color: #d35400; font-size: 20px; text-align: center; margin-top: 0; }
-        
         input[type="text"] { width: 100%; padding: 15px; font-size: 20px; border: 3px solid #ffcc80; border-radius: 12px; outline: none; box-sizing: border-box; margin-bottom: 15px; font-family: inherit; }
         button { width: 100%; padding: 15px; font-size: 18px; background-color: #e67e22; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #d35400; }
-        
         #result-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
-        
         .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; }
         .card.has-meaning { border-left-color: #e67e22; }
         .card.no-meaning { border-left-color: #bdc3c7; }
-
-        .kanji-large { 
-            font-family: 'Klee One', cursive; 
-            font-size: 64px; 
-            font-weight: 600;
-            color: #2c3e50; 
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
+        .kanji-large { font-family: 'Klee One', cursive; font-size: 56px; font-weight: 600; color: #2c3e50; margin-bottom: 10px; text-align: center; word-break: break-all; }
         .meaning { font-size: 16px; color: #444; background-color: #fff9f0; padding: 12px; border-radius: 8px; line-height: 1.4; font-weight: bold; }
-        
         @media (max-width: 768px) { .app-container { flex-direction: column; height: auto; } .search-panel { width: 100%; } }
     </style>
 </head>
@@ -50,11 +28,11 @@
     <div class="app-container">
         <div class="search-panel">
             <h1>🖋️ かんじ練習じしょ</h1>
-            <input type="text" id="input-text" placeholder="ひらがなを入力">
+            <input type="text" id="input-text" placeholder="例：あう、会う、走る">
             <button onclick="searchKanji()">さがす</button>
             <div style="font-size: 11px; color: #666; margin-top: 20px; line-height: 1.6;">
-                <p>■ オレンジ：使い分け（1-6年）<br>■ グレー：自動変換</p>
-                <p>※半角カタカナは表示しません。</p>
+                <p>💡 使い方</p>
+                <p>・「送り仮名」を入れてもOK！<br>・漢字を入れると、同じ読みの漢字も一緒に探します。</p>
             </div>
         </div>
         <div class="result-panel">
@@ -63,24 +41,20 @@
     </div>
 
     <script>
-        // 小学校全学年の主要データ（維持）
         const dictionary = {
-            "あう": [{kanji:"会う", mean:"人とあう"}, {kanji:"合う", mean:"形や数が同じになる"}, {kanji:"遭う", mean:"悪いことに出あう"}],
-            "あける": [{kanji:"開ける", mean:"ドアなどをひらく"}, {kanji:"空ける", mean:"中身をからにする"}, {kanji:"明ける", mean:"明るくなる・終わる"}],
-            "あつい": [{kanji:"暑い", mean:"気温が高い"}, {kanji:"熱い", mean:"物の温度が高い"}, {kanji:"厚い", mean:"厚みがある"}],
-            "あらわす": [{kanji:"表す", mean:"言葉や形にする"}, {kanji:"現す", mean:"姿を見せる"}, {kanji:"著す", mean:"本を書く"}],
-            "いがい": [{kanji:"以外", mean:"それをのぞいて"}, {kanji:"意外", mean:"思ったのとちがう"}],
-            "おくる": [{kanji:"送る", mean:"物や人を届ける"}, {kanji:"贈る", mean:"プレゼントをする"}],
-            "おさめる": [{kanji:"収める", mean:"中に入れる"}, {kanji:"納める", mean:"お金を払う"}, {kanji:"治める", mean:"国を平和にする"}, {kanji:"修める", mean:"学問を身につける"}],
-            "かえる": [{kanji:"変える", mean:"別のものにする"}, {kanji:"代える", mean:"交代する"}, {kanji:"替える", mean:"新しいものにする"}, {kanji:"換える", mean:"交換する"}],
-            "きかい": [{kanji:"機械", mean:"マシン・装置"}, {kanji:"機会", mean:"チャンス"}, {kanji:"器械", mean:"道具・とび箱など"}],
-            "こうえん": [{kanji:"公園", mean:"みんなの広場"}, {kanji:"講演", mean:"お話を聞く会"}, {kanji:"公演", mean:"劇や音楽の発表"}],
-            "しめる": [{kanji:"閉める", mean:"窓やドア"}, {kanji:"締める", mean:"ネクタイやベルト"}, {kanji:"占める", mean:"場所をとる"}, {kanji:"湿る", mean:"ぬれている"}],
-            "たつ": [{kanji:"立つ", mean:"立ちあがる"}, {kanji:"建つ", mean:"家ができる"}, {kanji:"絶つ", mean:"縁をきる"}, {kanji:"断つ", mean:"お酒などをやめる"}],
-            "つとめる": [{kanji:"勤める", mean:"会社ではたらく"}, {kanji:"努める", mean:"努力する"}, {kanji:"務める", mean:"役わりをやる"}],
-            "はかる": [{kanji:"計る", mean:"時間・数"}, {kanji:"測る", mean:"長さ・高さ"}, {kanji:"量る", mean:"重さ・体積"}, {kanji:"図る", mean:"計画する"}, {kanji:"謀る", mean:"たくらむ"}],
+            "あう": [{kanji:"会う", mean:"人と会う"}, {kanji:"合う", mean:"同じになる"}, {kanji:"遭う", mean:"悪いことにあう"}],
+            "あける": [{kanji:"開ける", mean:"ドアをひらく"}, {kanji:"空ける", mean:"からにする"}, {kanji:"明ける", mean:"明るくなる"}],
+            "あがる": [{kanji:"上がる", mean:"上へいく"}, {kanji:"挙がる", mean:"手があがる"}],
+            "あつい": [{kanji:"暑い", mean:"気温が高い"}, {kanji:"熱い", mean:"温度が高い"}, {kanji:"厚い", mean:"厚みがある"}],
+            "あらわす": [{kanji:"表す", mean:"言葉にする"}, {kanji:"現す", mean:"姿を見せる"}, {kanji:"著す", mean:"本を書く"}],
+            "おくる": [{kanji:"送る", mean:"届ける"}, {kanji:"贈る", mean:"プレゼント"}],
+            "おさめる": [{kanji:"収める", mean:"中に入れる"}, {kanji:"納める", mean:"お金を払う"}, {kanji:"治める", mean:"平和にする"}, {kanji:"修める", mean:"学問を身につける"}],
+            "かえる": [{kanji:"変える", mean:"別のものに"}, {kanji:"代える", mean:"交代する"}, {kanji:"替える", mean:"新しくする"}, {kanji:"換える", mean:"交換する"}],
+            "しめる": [{kanji:"閉める", mean:"ドアを閉じる"}, {kanji:"締める", mean:"ベルトをむすぶ"}, {kanji:"占める", mean:"場所をとる"}, {kanji:"湿る", mean:"ぬれる"}],
+            "たつ": [{kanji:"立つ", mean:"立ちあがる"}, {kanji:"建つ", mean:"家ができる"}, {kanji:"絶つ", mean:"縁をきる"}, {kanji:"断つ", mean:"やめる"}],
+            "はかる": [{kanji:"計る", mean:"時間・数"}, {kanji:"測る", mean:"長さ・高さ"}, {kanji:"量る", mean:"重さ"}, {kanji:"図る", mean:"計画する"}, {kanji:"謀る", mean:"たくらむ"}],
             "はやい": [{kanji:"早い", mean:"時間がはやい"}, {kanji:"速い", mean:"スピードがはやい"}],
-            "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"親切・やさしい"}]
+            "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"しんせつ"}]
         };
 
         async function searchKanji() {
@@ -90,36 +64,61 @@
             
             resultArea.innerHTML = '';
             
-            // 1. 登録済み辞書の検索
+            // 1. 読み（ひらがな）を特定する（逆引き）
+            let targetReading = null;
             if (dictionary[input]) {
-                dictionary[input].forEach(item => createCard(item.kanji, item.mean));
+                targetReading = input;
             } else {
-                // 2. 自動変換APIの検索
-                try {
-                    const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${input}`);
-                    const data = await res.json();
-                    
-                    if (data && data[0] && data[0][1]) {
-                        // 【修正】半角カタカナが含まれているか判定する関数
-                        const isHalfKana = (str) => {
-                            return /[\uFF61-\uFF9F]/.test(str);
-                        };
-
-                        // 半角カタカナを除去して、上位5つを表示
-                        const filteredCandidates = data[0][1].filter(kanji => !isHalfKana(kanji));
-
-                        filteredCandidates.slice(0, 5).forEach(kanji => {
-                            if (kanji !== input) createCard(kanji, null);
-                        });
+                for (let reading in dictionary) {
+                    if (dictionary[reading].some(item => item.kanji === input)) {
+                        targetReading = reading;
+                        break;
                     }
-                } catch (e) { console.error(e); }
+                }
             }
+
+            // 2. 表示処理
+            if (targetReading) {
+                // 辞書にある場合：セットですべて表示
+                dictionary[targetReading].forEach(item => createCard(item.kanji, item.mean));
+            } else {
+                // 辞書にない場合
+                if (/[一-龠]/.test(input)) {
+                    // 漢字が含まれていたら、送り仮名ごとそのまま表示
+                    createCard(input, null);
+                } else {
+                    // ひらがなのみならAPIで変換
+                    await searchFromAPI(input);
+                }
+            }
+        }
+
+        async function searchFromAPI(hira) {
+            try {
+                const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${hira}`);
+                const data = await res.json();
+                if (data && data[0] && data[0][1]) {
+                    const isHalfKana = (str) => /[\uFF61-\uFF9F]/.test(str);
+                    const filtered = data[0][1].filter(kanji => !isHalfKana(kanji));
+                    filtered.slice(0, 5).forEach(kanji => {
+                        if (kanji !== hira) createCard(kanji, null);
+                    });
+                }
+            } catch (e) { console.error(e); }
         }
 
         function createCard(kanji, mean) {
             const hasMeaning = (mean != null);
             const cardClass = hasMeaning ? "card has-meaning" : "card no-meaning";
-            const html = `<div class="${cardClass}"><div class="kanji-large">${kanji}</div>${hasMeaning ? `<div class="meaning">${mean}</div>` : ""}</div>`;
+            // 漢字の文字数が多い場合は少しフォントサイズを小さく調整
+            const fontSize = kanji.length > 4 ? "40px" : "56px";
+
+            const html = `
+                <div class="${cardClass}">
+                    <div class="kanji-large" style="font-size: ${fontSize}">${kanji}</div>
+                    ${hasMeaning ? `<div class="meaning">${mean}</div>` : ""}
+                </div>
+            `;
             document.getElementById('result-area').innerHTML += html;
         }
 
