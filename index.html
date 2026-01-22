@@ -3,324 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字 例文オート検索</title>
+    <title>漢字サクサク検索（小学校全学年対応版）</title>
     <style>
-        /* デザイン設定 */
-        body {
-            font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-            background-color: #fff3e0; /* オレンジ系のやさしい色 */
-            margin: 0;
-            padding: 0;
-            color: #333;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .app-container {
-            display: flex;
-            flex: 1;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        /* 左パネル */
-        .search-panel {
-            width: 300px;
-            background-color: #ffffff;
-            padding: 30px;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
-        }
-
-        /* 右パネル */
-        .result-panel {
-            flex: 1;
-            padding: 30px;
-            background-color: #fff8e1;
-            overflow-y: auto;
-        }
-
-        h1 { color: #ff6f00; font-size: 22px; text-align: center; margin-top: 0; }
-        .instruction { font-size: 14px; color: #666; margin-bottom: 20px; text-align: center; }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 15px;
-            font-size: 20px;
-            border: 3px solid #ffcc80;
-            border-radius: 12px;
-            outline: none;
-            box-sizing: border-box;
-            margin-bottom: 15px;
-        }
-        input[type="text"]:focus { border-color: #ff9800; }
-
-        button {
-            width: 100%;
-            padding: 15px;
-            font-size: 18px;
-            background-color: #ff9800;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 4px 0 #ef6c00;
-            margin-bottom: 10px;
-        }
-        button:active { transform: translateY(4px); box-shadow: none; }
-        button:disabled { background-color: #ccc; box-shadow: none; cursor: not-allowed; }
-
-        /* 結果エリア */
-        #result-area {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .card {
-            background: #fff;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
-            border-left: 10px solid #ddd;
-            position: relative;
-        }
-
-        .card.source-manual { border-left-color: #ff9800; } /* 先生の例文 */
-        .card.source-web { border-left-color: #29b6f6; }    /* Webから取得 */
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 15px;
-            border-bottom: 1px dashed #eee;
-            padding-bottom: 10px;
-        }
-
-        .kanji-large {
-            font-size: 48px;
-            font-weight: bold;
-            color: #333;
-            margin-right: 15px;
-        }
-
-        .badge {
-            font-size: 11px;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
-            margin-left: auto;
-            font-weight: bold;
-        }
-        .badge-manual { background: #ff9800; }
-        .badge-web { background: #29b6f6; }
-
-        .example-box {
-            font-size: 16px;
-            color: #444;
-            background-color: #fff3e0;
-            padding: 15px;
-            border-radius: 10px;
-            line-height: 1.6;
-            flex: 1;
-        }
-
-        /* 読み込み中のくるくる */
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #ff9800;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* スマホ対応 */
-        @media (max-width: 768px) {
-            .app-container { flex-direction: column; height: auto; overflow: visible; }
-            .search-panel { width: 100%; box-sizing: border-box; padding: 20px; }
-            #result-area { grid-template-columns: 1fr; }
-        }
+        body { font-family: sans-serif; background-color: #f0f8ff; margin: 0; padding: 0; color: #333; height: 100vh; display: flex; flex-direction: column; }
+        .app-container { display: flex; flex: 1; height: 100%; overflow: hidden; }
+        .search-panel { width: 300px; background-color: #ffffff; padding: 30px; box-shadow: 2px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; z-index: 10; }
+        .result-panel { flex: 1; padding: 30px; background-color: #e6f2ff; overflow-y: auto; }
+        h1 { color: #0066cc; font-size: 20px; text-align: center; margin-top: 0; }
+        input[type="text"] { width: 100%; padding: 15px; font-size: 20px; border: 3px solid #b3d9ff; border-radius: 12px; outline: none; box-sizing: border-box; margin-bottom: 15px; }
+        button { width: 100%; padding: 15px; font-size: 18px; background-color: #0066cc; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #004c99; }
+        #result-area { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .card { background: #fff; border-radius: 15px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 10px solid #ccc; }
+        .card.has-meaning { border-left-color: #0066cc; }
+        .card.no-meaning { border-left-color: #ff9900; }
+        .kanji-large { font-size: 48px; font-weight: bold; color: #333; margin-bottom: 10px; }
+        .meaning { font-size: 16px; color: #444; background-color: #f0f8ff; padding: 10px; border-radius: 8px; line-height: 1.4; font-weight: bold; }
+        @media (max-width: 768px) { .app-container { flex-direction: column; height: auto; } .search-panel { width: 100%; } }
     </style>
 </head>
 <body>
 
     <div class="app-container">
         <div class="search-panel">
-            <h1>🌐 例文オート検索</h1>
-            <p class="instruction">ひらがなで入力してね</p>
-            
-            <input type="text" id="input-text" placeholder="例：あう、しんごう">
-            <button onclick="startSearch()" id="search-btn">さがす</button>
-            
-            <div style="font-size: 12px; color: #666; margin-top: 20px;">
-                <p>💡 データの種類</p>
-                <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
-                    <span style="width:15px; height:15px; background:#ff9800; display:inline-block;"></span>
-                    <span>先生の辞書（正確）</span>
-                </div>
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <span style="width:15px; height:15px; background:#29b6f6; display:inline-block;"></span>
-                    <span>ネット検索（自動）</span>
-                </div>
+            <h1>🚀 漢字サクサク検索</h1>
+            <input type="text" id="input-text" placeholder="ひらがなを入力">
+            <button onclick="searchKanji()">さがす</button>
+            <div style="font-size: 11px; color: #666; margin-top: 20px;">
+                <p>■ 青：使い分けあり（1-6年）<br>■ 橙：自動変換</p>
             </div>
         </div>
-
         <div class="result-panel">
-            <div id="result-area">
-                <div style="text-align: center; color: #aaa; margin-top: 50px;">
-                    ここに 結果が 出るよ
-                </div>
-            </div>
+            <div id="result-area"></div>
         </div>
     </div>
 
     <script>
-        // 1. 手作り辞書（一番優先）
+        // 小学校1〜6年生の主要な同音異義語
         const dictionary = {
-            "あう": [
-                { kanji: "会う", ex: "駅で 友だちに 会う。" },
-                { kanji: "合う", ex: "くつの サイズが 合う。" },
-                { kanji: "遭う", ex: "にわか雨に 遭う。" }
-            ],
-            "こうえん": [
-                { kanji: "公園", ex: "公園で サッカーをする。" },
-                { kanji: "講演", ex: "有名な 人の 講演を聞く。" }
-            ]
+            "あう": [{kanji:"会う", mean:"人とあう"}, {kanji:"合う", mean:"形や数が同じになる"}, {kanji:"遭う", mean:"悪いことに出あう"}],
+            "あける": [{kanji:"開ける", mean:"ドアなどをひらく"}, {kanji:"空ける", mean:"中身をからにする"}, {kanji:"明ける", mean:"明るくなる・終わる"}],
+            "あげる": [{kanji:"上げる", mean:"上の方へやる"}, {kanji:"挙げる", mean:"例を出す・式をおこなう"}],
+            "あつい": [{kanji:"暑い", mean:"気温が高い"}, {kanji:"熱い", mean:"物の温度が高い"}, {kanji:"厚い", mean:"厚みがある"}],
+            "あやまる": [{kanji:"謝る", mean:"ごめんなさいと言う"}, {kanji:"誤る", mean:"やり方をまちがえる"}],
+            "あらわす": [{kanji:"表す", mean:"言葉や形にする"}, {kanji:"現す", mean:"姿を見せる"}, {kanji:"著す", mean:"本を書く"}],
+            "いがい": [{kanji:"以外", mean:"それをのぞいて"}, {kanji:"意外", mean:"思ったのとちがう"}],
+            "いどう": [{kanji:"移動", mean:"場所がかわる"}, {kanji:"異動", mean:"役職や部署がかわる"}],
+            "おくる": [{kanji:"送る", mean:"物や人を届ける"}, {kanji:"贈る", mean:"プレゼントをする"}],
+            "おさめる": [{kanji:"収める", mean:"中に入れる"}, {kanji:"納める", mean:"お金を払う"}, {kanji:"治める", mean:"国を平和にする"}, {kanji:"修める", mean:"学問を身につける"}],
+            "おりる": [{kanji:"下りる", mean:"上から下へ"}, {kanji:"降りる", mean:"乗り物から出る"}],
+            "かえる": [{kanji:"変える", mean:"別のものにする"}, {kanji:"代える", mean:"交代する"}, {kanji:"替える", mean:"新しいものにする"}, {kanji:"換える", mean:"交換する"}],
+            "かえす": [{kanji:"返す", mean:"元の持ち主に"}, {kanji:"反す", mean:"裏がえす"}],
+            "かき": [{kanji:"書き", mean:"字を書く"}, {kanji:"下記", mean:"下にしるしてあること"}, {kanji:"夏季", mean:"夏休みなどの夏"}],
+            "かく": [{kanji:"書く", mean:"文字を書く"}, {kanji:"描く", mean:"絵をかく"}],
+            "かいとう": [{kanji:"解答", mean:"もんだいを解く"}, {kanji:"回答", mean:"アンケートに答える"}],
+            "かんじ": [{kanji:"漢字", mean:"日本の文字"}, {kanji:"感じ", mean:"気持ち・センス"}, {kanji:"幹事", mean:"まとめ役"}],
+            "きかい": [{kanji:"機械", mean:"マシン・装置"}, {kanji:"機会", mean:"チャンス"}, {kanji:"器械", mean:"道具・とび箱など"}],
+            "きしゃ": [{kanji:"記者", mean:"新聞やテレビの人"}, {kanji:"汽車", mean:"蒸気で動く列車"}],
+            "きめる": [{kanji:"決める", mean:"約束やルール"}, {kanji:"極める", mean:"最後までやる"}],
+            "きょうかい": [{kanji:"協会", mean:"グループ・団体"}, {kanji:"教会", mean:"キリスト教の建物"}, {kanji:"境界", mean:"さかいめ"}],
+            "こうえん": [{kanji:"公園", mean:"みんなの広場"}, {kanji:"講演", mean:"お話を聞く会"}, {kanji:"公演", mean:"劇や音楽の発表"}],
+            "さす": [{kanji:"指す", mean:"指でしめす"}, {kanji:"差す", mean:"かさを広げる"}, {kanji:"刺す", mean:"針でチクッとする"}],
+            "しめる": [{kanji:"閉める", mean:"窓やドア"}, {kanji:"締める", mean:"ネクタイやベルト"}, {kanji:"占める", mean:"場所をとる"}, {kanji:"湿る", mean:"ぬれている"}],
+            "じょうしょう": [{kanji:"上昇", mean:"上にあがる"}, {kanji:"常勝", mean:"いつも勝つ"}],
+            "せいせい": [{kanji:"生成", mean:"新しくできる"}, {kanji:"精製", mean:"きれいに作る"}],
+            "たいしょう": [{kanji:"対象", mean:"あいて"}, {kanji:"対照", mean:"くらべる"}, {kanji:"対称", mean:"左右同じ形"}],
+            "たつ": [{kanji:"立つ", mean:"立ちあがる"}, {kanji:"建つ", mean:"家ができる"}, {kanji:"絶つ", mean:"縁をきる"}, {kanji:"断つ", mean:"お酒などをやめる"}],
+            "つかう": [{kanji:"使う", mean:"道具やお金"}, {kanji:"遣う", mean:"気をつかう"}],
+            "つとめる": [{kanji:"勤める", mean:"会社ではたらく"}, {kanji:"努める", mean:"努力する"}, {kanji:"務める", mean:"役わりをやる"}],
+            "とまる": [{kanji:"止まる", mean:"うごきが止まる"}, {kanji:"泊まる", mean:"ホテルにねる"}],
+            "なおす": [{kanji:"直す", mean:"修理・まちがい"}, {kanji:"治す", mean:"病気やケガ"}],
+            "はかる": [{kanji:"計る", mean:"時間・数"}, {kanji:"測る", mean:"長さ・高さ"}, {kanji:"量る", mean:"重さ・体積"}, {kanji:"図る", mean:"計画する"}, {kanji:"謀る", mean:"たくらむ"}],
+            "はやい": [{kanji:"早い", mean:"時間がはやい"}, {kanji:"速い", mean:"スピードがはやい"}],
+            "ふね": [{kanji:"船", mean:"大きなふね"}, {kanji:"舟", mean:"小さな手こぎぶね"}],
+            "まるい": [{kanji:"丸い", mean:"ボールのような形"}, {kanji:"円い", mean:"円（サークル）の形"}],
+            "やさしい": [{kanji:"易しい", mean:"かんたん"}, {kanji:"優しい", mean:"親切・やさしい"}],
+            "よる": [{kanji:"寄る", mean:"近くへいく"}, {kanji:"依る", mean:"理由や原因"}],
+            "わかれる": [{kanji:"別れる", mean:"人とさよならする"}, {kanji:"分かれる", mean:"道がふたつになる"}]
         };
 
-        // 検索ボタンを押した時の処理
-        async function startSearch() {
+        async function searchKanji() {
             const input = document.getElementById('input-text').value.trim();
             const resultArea = document.getElementById('result-area');
-            const btn = document.getElementById('search-btn');
-            
             if (input === "") return;
-
-            // 画面をリセットして読み込み中にする
-            resultArea.innerHTML = '<div class="spinner"></div><p style="text-align:center">ネットから 例文を さがしています...</p>';
-            btn.disabled = true; // 連打防止
-
-            try {
-                // A. 手作り辞書にあるか確認
-                if (dictionary[input]) {
-                    resultArea.innerHTML = "";
-                    dictionary[input].forEach(item => {
-                        createCard(item.kanji, item.ex, true);
-                    });
-                } 
-                // B. ない場合はネット検索へ
-                else {
-                    await searchFromWeb(input);
-                }
-            } catch (e) {
-                console.error(e);
-                resultArea.innerHTML = '<p style="text-align:center">エラーに なっちゃいました。</p>';
-            }
-
-            btn.disabled = false; // ボタンを復活
-        }
-
-        // Webから漢字と例文を探す関数
-        async function searchFromWeb(hiragana) {
-            const resultArea = document.getElementById('result-area');
-            
-            // 1. まずGoogleで「漢字の候補」を取得
-            const googleRes = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${hiragana}`);
-            const googleData = await googleRes.json();
-
-            if (!googleData || !googleData[0] || !googleData[0][1] || googleData[0][1].length === 0) {
-                resultArea.innerHTML = '<p style="text-align:center">漢字が 見つかりませんでした。</p>';
-                return;
-            }
-
-            const candidates = googleData[0][1].slice(0, 3); // 上位3つを取得
-            let foundCount = 0;
-            resultArea.innerHTML = ""; // 読み込み表示を消す
-
-            // 2. 各漢字について「Tatoeba」から例文を取得
-            // （for文を使って順番に処理します）
-            for (const kanji of candidates) {
-                if (kanji === hiragana) continue; // ひらがなのままならスキップ
-
-                // Tatoeba APIを呼び出す（CORS制限回避のためプロキシを使用）
-                // 長すぎる文章を除外するために、短い順にソートして取得
-                const proxyUrl = "https://api.allorigins.win/get?url=";
-                const targetUrl = encodeURIComponent(`https://tatoeba.org/en/api_v0/search?from=jpn&trans_to=eng&query=${kanji}&sort=length&direction=asc`);
-                
+            resultArea.innerHTML = '';
+            if (dictionary[input]) {
+                dictionary[input].forEach(item => createCard(item.kanji, item.mean));
+            } else {
                 try {
-                    const res = await fetch(proxyUrl + targetUrl);
+                    const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${input}`);
                     const data = await res.json();
-                    const json = JSON.parse(data.contents); // プロキシの中身を取り出す
-
-                    let exampleSentence = "例文が 見つかりませんでした。";
-
-                    // 検索結果から、よさそうな例文を探す
-                    if (json.results && json.results.length > 0) {
-                        // 最初の結果を採用（短い順になっているはず）
-                        // ※HTMLタグが含まれている場合があるので除去する
-                        const rawText = json.results[0].text;
-                        exampleSentence = rawText.replace(/<[^>]*>?/gm, ''); 
+                    if (data && data[0] && data[0][1]) {
+                        data[0][1].slice(0, 5).forEach(kanji => {
+                            if (kanji !== input) createCard(kanji, null);
+                        });
                     }
-
-                    createCard(kanji, exampleSentence, false);
-                    foundCount++;
-
-                } catch (err) {
-                    console.log("例文取得エラー:", kanji);
-                    createCard(kanji, "（通信エラーで例文が出ませんでした）", false);
-                    foundCount++;
-                }
-            }
-
-            if (foundCount === 0) {
-                resultArea.innerHTML = '<p style="text-align:center">よい漢字が 見つかりませんでした。</p>';
+                } catch (e) { console.error(e); }
             }
         }
 
-        // カードを作成する関数
-        function createCard(kanji, example, isManual) {
-            const resultArea = document.getElementById('result-area');
-            
-            const badgeText = isManual ? "先生の辞書" : "ネット検索";
-            const badgeClass = isManual ? "badge-manual" : "badge-web";
-            const cardClass = isManual ? "card source-manual" : "card source-web";
-
-            // ネット検索の場合は、注意書きを追加
-            const note = isManual ? "" : "<div style='font-size:10px; color:#888; text-align:right; margin-top:5px;'>※ネット上の例文です</div>";
-
-            const html = `
-                <div class="${cardClass}">
-                    <div class="card-header">
-                        <div class="kanji-large">${kanji}</div>
-                        <span class="badge ${badgeClass}">${badgeText}</span>
-                    </div>
-                    <div class="example-box">
-                        ${example}
-                    </div>
-                    ${note}
-                </div>
-            `;
-            resultArea.innerHTML += html;
+        function createCard(kanji, mean) {
+            const hasMeaning = (mean != null);
+            const cardClass = hasMeaning ? "card has-meaning" : "card no-meaning";
+            const html = `<div class="${cardClass}"><div class="kanji-large">${kanji}</div>${hasMeaning ? `<div class="meaning">${mean}</div>` : ""}</div>`;
+            document.getElementById('result-area').innerHTML += html;
         }
 
-        // Enterキー対応
-        document.getElementById("input-text").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                startSearch();
-            }
-        });
+        document.getElementById("input-text").addEventListener("keypress", (e) => { if (e.key === "Enter") searchKanji(); });
     </script>
 </body>
 </html>
