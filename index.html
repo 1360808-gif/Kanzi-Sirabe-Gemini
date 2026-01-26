@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書</title>
-    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
-    
+    <title>かんじ・でか辞書（入力優先版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
-            --main-bg: #f8fafc;
+            --main-bg: #fdfaf5;
             --accent: #e67e22;
-            --text-dark: #1a202c;
         }
 
         body {
@@ -20,137 +17,123 @@
             margin: 0;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            align-items: center;
         }
 
-        /* 検索・入力エリア */
+        /* 検索バー */
         header {
-            background: white;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            text-align: center;
-        }
-
-        .search-box {
-            max-width: 800px;
-            margin: 0 auto;
-            position: relative;
-        }
-
-        #input-text {
             width: 100%;
-            padding: 20px 30px;
-            font-size: 28px;
-            border: 4px solid #e2e8f0;
-            border-radius: 100px;
-            outline: none;
-            box-sizing: border-box;
-            font-family: var(--primary-font);
-            transition: border-color 0.3s;
+            background: white;
+            padding: 20px 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        #input-text:focus { border-color: var(--accent); }
+        .search-container {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            padding: 0 20px;
+        }
 
-        /* メイン表示エリア */
-        main {
+        input[type="text"] {
             flex: 1;
+            padding: 15px 25px;
+            font-size: 24px;
+            border: 3px solid #ffcc80;
+            border-radius: 50px;
+            outline: none;
+            font-family: var(--primary-font);
+        }
+
+        /* メイン表示 */
+        #result-area {
+            width: 90%;
+            max-width: 1000px;
+            padding: 40px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
-            overflow-y: auto;
+            gap: 30px;
         }
 
-        /* 巨大表示カード */
-        .big-card {
+        /* 「これ！」という一番大きなカード */
+        .focus-card {
             background: white;
-            padding: 60px;
-            border-radius: 40px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 30px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            border: 4px solid var(--accent);
             text-align: center;
-            min-width: 400px;
-            margin-bottom: 30px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .focus-label {
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
         }
 
         .huge-kanji {
-            font-size: 160px; /* PCの変換窓の約10倍以上 */
-            color: var(--text-dark);
+            font-size: 140px;
+            color: #2d3748;
             line-height: 1.2;
         }
 
-        ruby { ruby-align: center; }
-        rt { font-size: 0.3em; color: var(--accent); font-weight: bold; margin-bottom: 10px; }
-
-        /* 候補・意味の提案エリア */
-        .suggestion-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        /* 同音異義語の提案エリア */
+        .other-suggestions {
             width: 100%;
-            max-width: 1000px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
         }
 
-        .suggest-item {
-            background: #fff;
-            border: 3px solid #edf2f7;
-            padding: 15px;
+        .suggest-card {
+            background: white;
+            padding: 20px;
             border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-left: 8px solid #cbd5e0;
         }
 
-        .suggest-item:hover {
-            border-color: var(--accent);
-            background: #fffaf0;
-            transform: translateY(-3px);
-        }
+        .suggest-kanji { font-size: 50px; color: #4a5568; }
+        .suggest-info { flex: 1; }
+        .suggest-mean { font-size: 14px; color: #718096; font-weight: bold; line-height: 1.4; }
 
-        .suggest-kanji { font-size: 40px; display: block; margin-bottom: 5px; }
-        .suggest-mean { font-size: 14px; color: #718096; font-weight: bold; }
-
-        .label { font-size: 18px; color: var(--accent); font-weight: bold; margin-bottom: 15px; }
+        ruby { ruby-align: center; }
+        rt { font-size: 0.3em; color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="search-box">
-        <input type="text" id="input-text" placeholder="しりたい 漢字や 読みを入力してね" autocomplete="off">
+    <div class="search-container">
+        <input type="text" id="input-text" placeholder="しりたい漢字をいれてね" autocomplete="off">
     </div>
 </header>
 
-<main id="main-content">
-    <div id="hint-text" style="color:#a0aec0; font-size: 20px;">
-        🔍 調べたい文字を上の窓に打ち込んでみてね！
+<div id="result-area">
     </div>
-
-    <div id="focus-area"></div>
-
-    <div id="suggestion-container" style="width: 100%; display:none; flex-direction: column; align-items: center;">
-        <div class="label">どれが しりたい漢字かな？</div>
-        <div class="suggestion-grid" id="suggestion-grid"></div>
-    </div>
-</main>
 
 <script>
     const dictionary = {
         "あう": [
-            {kanji:"会u", r:"あう", m:"人に 会う"},
-            {kanji:"合う", r:"あう", m:"形や 数が 同じになる"},
-            {kanji:"遭う", r:"あう", m:"ひどい 目に 遭う"}
-        ],
-        "きかい": [
-            {kanji:"機械", r:"きかい", m:"マシン・ロボット"},
-            {kanji:"機会", r:"きかい", m:"チャンス・ちょうどよい時"},
-            {kanji:"器械", r:"きかい", m:"道具（とび箱など）"}
+            {kanji:"会う", r:"あう", m:"<ruby>人<rt>ひと</rt></ruby>に 会う"},
+            {kanji:"合う", r:"あう", m:"<ruby>形<rt>かたち</rt></ruby>や <ruby>数<rt>かず</rt></ruby>が 同じになる"},
+            {kanji:"遭う", r:"あう", m:"ひどい <ruby>目<rt>め</rt></ruby>に 遭う"}
         ],
         "あつい": [
-            {kanji:"暑い", r:"あつい", m:"天気が 暑い"},
-            {kanji:"熱い", r:"あつい", m:"お湯や 温度が 熱い"},
-            {kanji:"厚い", r:"あつい", m:"本や 板が 厚い"}
+            {kanji:"暑い", r:"あつい", m:"<ruby>気温<rt>きおん</rt></ruby>が 暑い"},
+            {kanji:"熱い", r:"あつい", m:"お<ruby>湯<rt>ゆ</rt></ruby>や <ruby>温度<rt>おんど</rt></ruby>が 熱い"},
+            {kanji:"厚い", r:"あつい", m:"<ruby>本<rt>ほん</rt></ruby>や <ruby>板<rt>いた</rt></ruby>が 厚い"}
         ]
     };
 
@@ -159,97 +142,89 @@
     input.addEventListener('input', async () => {
         const val = input.value.trim();
         if(!val) {
-            resetUI();
+            document.getElementById('result-area').innerHTML = '';
             return;
         }
-        updateSearch(val);
-    });
+        
+        const hasKanji = /[一-龠]/.test(val);
+        let reading = hasKanji ? await fetchReading(val) : val;
+        
+        // 全候補を取得
+        let allCandidates = dictionary[reading] || [];
+        
+        // --- ここがポイント：入力された漢字を一番上にする ---
+        let firstPriority = null;
+        let others = [];
 
-    async function updateSearch(query) {
-        const hasKanji = /[一-龠]/.test(query);
-        let reading = query;
-        let candidates = [];
-
-        // 1. 辞書に読みがあるかチェック
-        if (dictionary[query]) {
-            candidates = dictionary[query];
-            showFocus(candidates[0].kanji, query, candidates[0].m);
-        } else if (hasKanji) {
-            // 2. 漢字入力の場合
-            reading = await fetchReading(query);
-            showFocus(query, reading, null);
-            // 同音異義語を検索
-            if(dictionary[reading]) {
-                candidates = dictionary[reading];
+        if (hasKanji) {
+            // 入力された漢字が辞書にあるか探す
+            const foundInDict = allCandidates.find(item => item.kanji === val);
+            if (foundInDict) {
+                firstPriority = foundInDict;
+                others = allCandidates.filter(item => item.kanji !== val);
+            } else {
+                // 辞書になくても、入力された漢字そのものを最優先にする
+                firstPriority = { kanji: val, r: reading, m: "（入力した漢字）" };
+                others = allCandidates;
             }
         } else {
-            // 3. ひらがな（辞書なし）の場合、APIで候補取得
-            candidates = await fetchCandidates(query);
-            if(candidates.length > 0) {
-                showFocus(candidates[0].kanji, query, null);
+            // ひらがな入力の場合は、辞書の1番目を優先
+            if (allCandidates.length > 0) {
+                firstPriority = allCandidates[0];
+                others = allCandidates.slice(1);
             }
         }
 
-        renderSuggestions(candidates);
-    }
+        renderUI(firstPriority, others);
+    });
 
-    function showFocus(kanji, reading, meaning) {
-        document.getElementById('hint-text').style.display = 'none';
-        const area = document.getElementById('focus-area');
-        area.innerHTML = `
-            <div class="big-card">
+    function renderUI(main, subList) {
+        const area = document.getElementById('result-area');
+        area.innerHTML = '';
+
+        if (!main) return;
+
+        // 1. 最優先（入力した漢字）を大きく表示
+        const mainHtml = `
+            <div class="focus-card">
+                <div class="focus-label">✨ いま 入力した かんじ</div>
                 <div class="huge-kanji">
-                    <ruby>${kanji}<rt>${reading}</rt></ruby>
+                    <ruby>${main.kanji}<rt>${main.r}</rt></ruby>
                 </div>
-                ${meaning ? `<div style="font-size:24px; color:#666; margin-top:20px;">${meaning}</div>` : ''}
+                <div style="font-size:20px; color:#666; margin-top:15px; font-weight:bold;">${main.m || ''}</div>
             </div>
         `;
-    }
 
-    function renderSuggestions(list) {
-        const container = document.getElementById('suggestion-container');
-        const grid = document.getElementById('suggestion-grid');
-        grid.innerHTML = '';
-
-        if(list.length <= 1) {
-            container.style.display = 'none';
-            return;
+        // 2. その他の候補を表示
+        let subHtml = '';
+        if (subList.length > 0) {
+            subHtml = `<div style="width:100%; font-weight:bold; color:#718096; margin-top:20px;">💡 ほかにも こんな漢字が あるよ：</div>
+                       <div class="other-suggestions">`;
+            subList.forEach(item => {
+                subHtml += `
+                    <div class="suggest-card">
+                        <div class="suggest-kanji">
+                            <ruby>${item.kanji}<rt>${item.r}</rt></ruby>
+                        </div>
+                        <div class="suggest-info">
+                            <div class="suggest-mean">${item.m}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            subHtml += `</div>`;
         }
 
-        container.style.display = 'flex';
-        list.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'suggest-item';
-            div.innerHTML = `
-                <span class="suggest-kanji">${item.kanji}</span>
-                <span class="suggest-mean">${item.m || 'これかな？'}</span>
-            `;
-            div.onclick = () => {
-                showFocus(item.kanji, item.r || input.value, item.m);
-                window.scrollTo({top: 0, behavior: 'smooth'});
-            };
-            grid.appendChild(div);
-        });
+        area.innerHTML = mainHtml + subHtml;
     }
 
     async function fetchReading(kanji) {
-        const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${kanji}`);
-        const data = await res.json();
-        return data[0][1][0];
-    }
-
-    async function fetchCandidates(hira) {
-        const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${hira}`);
-        const data = await res.json();
-        return data[0][1].slice(0, 5).map(c => ({kanji: c, r: hira, m: null}));
-    }
-
-    function resetUI() {
-        document.getElementById('focus-area').innerHTML = '';
-        document.getElementById('suggestion-container').style.display = 'none';
-        document.getElementById('hint-text').style.display = 'block';
+        try {
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${kanji}`);
+            const data = await res.json();
+            return data[0][1][0];
+        } catch (e) { return ""; }
     }
 </script>
-
 </body>
 </html>
