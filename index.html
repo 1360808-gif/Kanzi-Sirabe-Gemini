@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ修正版）</title>
+    <title>かんじ・でか辞書（ルビ絶対表示版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -26,9 +26,11 @@
             padding: 15px 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             z-index: 100;
+            display: flex;
+            justify-content: center;
         }
 
-        input[type="text"] {
+        #input-text {
             width: 100%; max-width: 800px; padding: 12px 25px; font-size: 22px; 
             border: 3px solid #e1e8ed; border-radius: 50px; 
             outline: none; font-family: var(--primary-font);
@@ -37,7 +39,7 @@
         .app-layout { display: flex; flex: 1; overflow: hidden; }
 
         .main-column {
-            flex: 3; padding: 40px; display: flex;
+            flex: 3; padding: 20px; display: flex;
             flex-direction: column; align-items: center;
             justify-content: center; overflow: hidden;
         }
@@ -47,7 +49,8 @@
             padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange);
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             display: flex; flex-direction: column; align-items: center;
-            justify-content: center; overflow: hidden;
+            justify-content: center;
+            transition: all 0.3s ease;
         }
 
         .huge-text-wrapper {
@@ -57,7 +60,6 @@
 
         .huge-text {
             display: inline-block; color: #1a202c; line-height: 1.1;
-            transition: font-size 0.3s ease-in-out;
         }
 
         .side-column {
@@ -77,7 +79,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「学校」など漢字を入れてみてね！" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」や「学校」とうってみてね！" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -86,7 +88,7 @@
             <div class="huge-text-wrapper" id="text-wrapper">
                 <div class="huge-text" id="huge-text"></div>
             </div>
-            <div id="meaning-label" style="font-size:18px; color:#4a5568; margin-top:10px; font-weight: bold;"></div>
+            <div id="status-label" style="font-size:14px; color:#cbd5e0; margin-top:10px;"></div>
         </div>
     </main>
 
@@ -97,33 +99,41 @@
 </div>
 
 <script>
+    // --- 【強化版】内蔵ミニ辞書 ---
+    // APIが遅いときでも、これらは瞬時にルビが出ます
+    const localDict = {
+        "漢字": "かんじ", "学校": "がっこう", "練習": "れんしゅう", "先生": "せんせい",
+        "勉強": "べんきょう", "日本": "にっぽん", "一見": "いっけん", "言葉": "ことば"
+    };
+
     const input = document.getElementById('input-text');
     const hugeText = document.getElementById('huge-text');
     const wrapper = document.getElementById('text-wrapper');
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // より確実に「漢字から読み」を取得するための関数
+    // 読みを取得するメイン関数
     async function getReading(text) {
         if (!text) return "";
+        
+        // 1. まず内蔵辞書をチェック
+        if (localDict[text]) return localDict[text];
+
+        // 2. Google APIへ問い合わせ
         try {
-            // 日本語入力の「かな変換」APIを利用
             const url = `https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`;
             const response = await fetch(url);
             const data = await response.json();
-            
-            // APIの結果から最も可能性の高い読みを抽出
-            if (data && data[0] && data[0][1]) {
+            if (data && data[0] && data[0][1] && data[0][1][0]) {
                 return data[0][1][0];
             }
-            return "";
         } catch (e) {
-            console.error("読みの取得に失敗しました", e);
-            return "";
+            console.log("API通信エラー: ", e);
         }
+
+        return ""; // どうしてもダメなとき
     }
 
-    // 読みから他の漢字候補を探す
     async function getCandidates(hira) {
         if (!hira) return [];
         try {
@@ -138,13 +148,11 @@
         const maxWidth = wrapper.offsetWidth * 0.85;
         const maxHeight = wrapper.offsetHeight * 0.75;
         let fontSize = 180;
-        hugeText.style.visibility = "hidden";
         hugeText.style.fontSize = fontSize + "px";
         while ((hugeText.offsetWidth > maxWidth || hugeText.offsetHeight > maxHeight) && fontSize > 20) {
             fontSize -= 4;
             hugeText.style.fontSize = fontSize + "px";
         }
-        hugeText.style.visibility = "visible";
     }
 
     input.addEventListener('input', () => {
@@ -154,34 +162,38 @@
         if(!val) {
             target.style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
-            document.getElementById('side-title').style.display = 'none';
             return;
         }
 
+        // 入力のたびにチラつかないよう、少し待つ
         timer = setTimeout(async () => {
-            // 読みを取得
+            target.style.display = 'flex';
+            
+            // 読みの取得（ここが一番大事）
             const reading = await getReading(val);
             
-            target.style.display = 'flex';
-            // ルビを付けて表示（読みが取れなかった場合はルビなし）
-            hugeText.innerHTML = reading ? `<ruby>${val}<rt>${reading}</rt></ruby>` : val;
-            
-            // 候補の取得
+            // 表示の更新
             if (reading) {
-                const candidates = await getCandidates(reading);
-                renderSubs(candidates, val, reading);
+                hugeText.innerHTML = `<ruby>${val}<rt>${reading}</rt></ruby>`;
+            } else {
+                hugeText.innerHTML = val; // 読みが取れなかったら漢字のみ
             }
             
             adjustFontSize();
-        }, 300);
+
+            // 候補の表示（ひらがな入力の時に役立つ）
+            const searchReading = reading || val;
+            const candidates = await getCandidates(searchReading);
+            renderSubs(candidates, val, searchReading);
+            
+        }, 350); 
     });
 
     function renderSubs(candidates, currentVal, reading) {
         const side = document.getElementById('suggestion-list');
         const sideTitle = document.getElementById('side-title');
         side.innerHTML = '';
-        
-        const filtered = candidates.filter(c => c.kanji !== currentVal);
+        const filtered = candidates.filter(c => c.kanji !== currentVal).slice(0, 10);
 
         if (filtered.length > 0) {
             sideTitle.style.display = 'block';
