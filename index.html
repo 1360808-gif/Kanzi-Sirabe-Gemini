@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ひらがな優先版）</title>
+    <title>かんじ・でか辞書（ふりがな完璧版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -53,7 +53,7 @@
         .focus-card {
             background: white;
             width: 95%;
-            height: 80%;
+            height: 85%;
             padding: 20px;
             border-radius: 30px;
             border: 6px solid var(--accent-orange);
@@ -100,20 +100,20 @@
         .sub-card:hover { border-color: #3498db; background: #f0f7ff; }
 
         ruby { ruby-align: center; }
-        rt { font-size: 0.3em; color: var(--accent-orange); font-weight: bold; }
+        rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="search-box">
-        <input type="text" id="input-text" placeholder="ひらがなで うってみてね！" autocomplete="off">
+        <input type="text" id="input-text" placeholder="かんじ や ひらがな をいれてね！" autocomplete="off">
     </div>
 </header>
 
 <div class="app-layout">
     <main class="main-column">
-        <div id="main-target" class="focus-card" style="display:none; transition: opacity 0.3s;">
+        <div id="main-target" class="focus-card" style="display:none;">
             <div class="huge-text-wrapper" id="text-wrapper">
                 <div class="huge-text" id="huge-text"></div>
             </div>
@@ -128,7 +128,7 @@
 </div>
 
 <script>
-    // 優先度を管理する辞書
+    // 辞書データ
     const dictionary = {
         "かんじ": [
             {kanji:"漢字", r:"かんじ", m:"日本の 使う 文字"},
@@ -178,31 +178,30 @@
             document.getElementById('side-title').style.display = 'block';
 
             const hasKanji = /[一-龠]/.test(val);
-            let mainKanji = "";
+            let mainKanji = val;
             let reading = "";
             let candidates = [];
 
             if (hasKanji) {
-                // 漢字入力時：それをメイン、同じ読みをサブへ
-                mainKanji = val;
+                // 漢字が入力された場合：その読みを取得
                 reading = await fetchReading(val);
+                // 同じ読みの他の漢字も候補として出す
                 candidates = await fetchCandidates(reading);
             } else {
-                // ひらがな入力時：一番よく使う漢字をAPIから取得
+                // ひらがなが入力された場合：一番使われる漢字を出す
                 candidates = await fetchCandidates(val);
                 if (candidates.length > 0) {
                     mainKanji = candidates[0].kanji;
                     reading = val;
                 } else {
-                    mainKanji = val;
                     reading = val;
                 }
             }
 
-            // メイン表示
+            // メイン表示（ルビを必ずつける）
             hugeText.innerHTML = `<ruby>${mainKanji}<rt>${reading}</rt></ruby>`;
             
-            // 意味を表示（辞書にある場合）
+            // 意味を表示
             const dictData = dictionary[reading] || [];
             const match = dictData.find(d => d.kanji === mainKanji);
             document.getElementById('meaning-label').innerText = match ? match.m : "";
@@ -212,32 +211,35 @@
         }, 300);
     });
 
-    // 候補リストからメインを除外して表示
-    function renderSubs(candidates, currentKanji, reading) {
+    async function renderSubs(candidates, currentKanji, reading) {
         const side = document.getElementById('suggestion-list');
         side.innerHTML = '';
         
-        // 辞書データも結合して網羅する
         let list = [...candidates];
         const dictData = dictionary[reading] || [];
         dictData.forEach(d => {
-            if(!list.some(l => l.kanji === d.kanji)) list.push({kanji: d.kanji, m: d.m});
+            if(!list.some(l => l.kanji === d.kanji)) list.push({kanji: d.kanji});
         });
 
         const filtered = list.filter(item => item.kanji !== currentKanji);
 
-        filtered.forEach(item => {
-            const mText = item.m || (dictionary[reading]?.find(d => d.kanji === item.kanji)?.m) || "（クリックで お手本へ）";
+        for (const item of filtered) {
+            // サイドの候補にもふりがなを付けるために読みを取得（辞書にない場合）
+            let subReading = reading; 
+            const dMatch = dictionary[reading]?.find(d => d.kanji === item.kanji);
+            const mText = dMatch ? dMatch.m : "（クリックで お手本へ）";
+
             const card = document.createElement('div');
             card.className = 'sub-card';
             card.onclick = () => { input.value = item.kanji; input.dispatchEvent(new Event('input')); };
-            card.innerHTML = `<span style="font-size:24px;"><ruby>${item.kanji}<rt>${reading}</rt></ruby></span><div style="font-size:11px; margin-top:5px; color:#718096;">${mText}</div>`;
+            card.innerHTML = `<span style="font-size:24px;"><ruby>${item.kanji}<rt>${subReading}</rt></ruby></span><div style="font-size:11px; margin-top:5px; color:#718096;">${mText}</div>`;
             side.appendChild(card);
-        });
+        }
     }
 
     async function fetchReading(kanji) {
         try {
+            // Google APIを使って漢字から読みを取得
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${kanji}`);
             const data = await res.json();
             return data[0][1][0];
@@ -248,7 +250,6 @@
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${hira}`);
             const data = await res.json();
-            // Google変換候補の順番（使用頻度順）で取得
             return data[0][1].filter(c => /[一-龠]/.test(c)).map(c => ({kanji: c}));
         } catch (e) { return []; }
     }
