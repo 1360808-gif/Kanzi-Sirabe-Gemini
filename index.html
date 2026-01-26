@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（自動サイズ調整版）</title>
+    <title>かんじ・でか辞書（目に優しい版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -46,15 +46,14 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center; /* 中央配置 */
-            overflow: hidden; /* はみ出し防止 */
+            justify-content: center;
+            overflow: hidden;
         }
 
-        /* 文字サイズ調整用のコンテナ */
         .focus-card {
             background: white;
             width: 95%;
-            height: 80%; /* 高さを確保 */
+            height: 80%;
             padding: 20px;
             border-radius: 30px;
             border: 6px solid var(--accent-orange);
@@ -64,12 +63,13 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            position: relative;
         }
 
         .huge-text-wrapper {
             width: 100%;
             text-align: center;
-            white-space: nowrap; /* 1行に強制 */
+            white-space: nowrap;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -80,7 +80,8 @@
             display: inline-block;
             color: #1a202c;
             line-height: 1.1;
-            transition: font-size 0.1s ease-out; /* サイズ変更を滑らかに */
+            /* サイズ変更をゆっくり滑らかにする */
+            transition: font-size 0.3s ease-in-out, opacity 0.2s;
         }
 
         /* 右カラム（1/4） */
@@ -97,7 +98,6 @@
             margin-bottom: 15px; cursor: pointer; border: 2px solid transparent;
         }
         .sub-card:hover { border-color: #3498db; background: #f0f7ff; }
-        .sub-kanji { font-size: 30px; display: block; margin-bottom: 5px; }
 
         ruby { ruby-align: center; }
         rt { font-size: 0.3em; color: var(--accent-orange); font-weight: bold; }
@@ -107,22 +107,22 @@
 
 <header>
     <div class="search-box">
-        <input type="text" id="input-text" placeholder="長い熟語もいれてみてね！" autocomplete="off">
+        <input type="text" id="input-text" placeholder="文字を入力してください" autocomplete="off">
     </div>
 </header>
 
 <div class="app-layout">
     <main class="main-column">
-        <div id="main-target" class="focus-card" style="display:none;">
+        <div id="main-target" class="focus-card" style="display:none; opacity:0; transition: opacity 0.3s;">
             <div class="huge-text-wrapper" id="text-wrapper">
                 <div class="huge-text" id="huge-text"></div>
             </div>
-            <div id="meaning-label" style="font-size:20px; color:#4a5568; margin-top:10px;"></div>
+            <div id="meaning-label" style="font-size:18px; color:#4a5568; margin-top:10px; height: 2em;"></div>
         </div>
     </main>
 
     <aside class="side-column">
-        <div style="font-weight:bold; color:#718096; margin-bottom:15px;">💡 ほかの こうほ</div>
+        <div style="font-weight:bold; color:#718096; margin-bottom:15px; font-size:14px;">💡 ほかの こうほ</div>
         <div id="suggestion-list"></div>
     </aside>
 </div>
@@ -136,45 +136,55 @@
     const input = document.getElementById('input-text');
     const hugeText = document.getElementById('huge-text');
     const wrapper = document.getElementById('text-wrapper');
+    const target = document.getElementById('main-target');
+    
+    let timer = null;
 
-    // フォントサイズを自動調整する関数
+    // フォントサイズを調整する関数（計算中のチラつきを防ぐ）
     function adjustFontSize() {
-        const maxWidth = wrapper.offsetWidth * 0.9; // 枠の90%幅に収める
-        const maxHeight = wrapper.offsetHeight * 0.8; // 枠の80%高さに収める
+        const maxWidth = wrapper.offsetWidth * 0.85;
+        const maxHeight = wrapper.offsetHeight * 0.75;
         
-        let fontSize = 200; // 最大サイズ
+        let fontSize = 180; // 基準サイズ
+        hugeText.style.visibility = "hidden"; // 計算中は隠す
         hugeText.style.fontSize = fontSize + "px";
 
-        // 幅または高さが枠を超える間、サイズを小さくする
+        // ループでの計算を高速化
         while ((hugeText.offsetWidth > maxWidth || hugeText.offsetHeight > maxHeight) && fontSize > 20) {
-            fontSize -= 5;
+            fontSize -= 4;
             hugeText.style.fontSize = fontSize + "px";
         }
+        hugeText.style.visibility = "visible";
     }
 
-    input.addEventListener('input', async () => {
+    input.addEventListener('input', () => {
         const val = input.value.trim();
+        
+        // 前のタイマーをクリア（連打時のチラつき防止）
+        clearTimeout(timer);
+
         if(!val) {
-            document.getElementById('main-target').style.display = 'none';
+            target.style.display = 'none';
+            target.style.opacity = '0';
             return;
         }
 
-        document.getElementById('main-target').style.display = 'flex';
-        const hasKanji = /[一-龠]/.test(val);
-        let reading = hasKanji ? await fetchReading(val) : val;
-        
-        // メイン表示の更新
-        hugeText.innerHTML = `<ruby>${val}<rt>${reading}</rt></ruby>`;
-        
-        // 意味の更新（辞書にあれば）
-        const dictMatch = (dictionary[reading] || []).find(s => s.kanji === val);
-        document.getElementById('meaning-label').innerText = dictMatch ? dictMatch.m : "（お手本を見て 練習しよう）";
+        // 入力が一息ついたら（300ms後）サイズ調整とAPI呼び出しを実行
+        timer = setTimeout(async () => {
+            target.style.display = 'flex';
+            target.style.opacity = '1';
 
-        // サイズ調整
-        adjustFontSize();
+            const hasKanji = /[一-龠]/.test(val);
+            let reading = hasKanji ? await fetchReading(val) : val;
+            
+            hugeText.innerHTML = `<ruby>${val}<rt>${reading}</rt></ruby>`;
+            
+            const dictMatch = (dictionary[reading] || []).find(s => s.kanji === val);
+            document.getElementById('meaning-label').innerText = dictMatch ? dictMatch.m : "";
 
-        // サイドバー更新
-        renderSubs(reading, val);
+            adjustFontSize();
+            renderSubs(reading, val);
+        }, 300); 
     });
 
     function renderSubs(reading, current) {
@@ -185,7 +195,7 @@
             const card = document.createElement('div');
             card.className = 'sub-card';
             card.onclick = () => { input.value = item.kanji; input.dispatchEvent(new Event('input')); };
-            card.innerHTML = `<span class="sub-kanji"><ruby>${item.kanji}<rt>${item.r}</rt></ruby></span><div style="font-size:12px;">${item.m}</div>`;
+            card.innerHTML = `<span style="font-size:24px;"><ruby>${item.kanji}<rt>${item.r}</rt></ruby></span><div style="font-size:11px; margin-top:5px;">${item.m}</div>`;
             side.appendChild(card);
         });
     }
@@ -198,8 +208,10 @@
         } catch (e) { return ""; }
     }
 
-    // 画面サイズが変わった時も再調整
-    window.addEventListener('resize', adjustFontSize);
+    window.addEventListener('resize', () => {
+        clearTimeout(timer);
+        timer = setTimeout(adjustFontSize, 100);
+    });
 </script>
 </body>
 </html>
