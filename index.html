@@ -3,68 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（リアルタイム版）</title>
+    <title>かんじ・でか辞書（2カラム版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
-            --main-bg: #f5f8fa;
+            --main-bg: #f5f7f9;
             --accent-orange: #e67e22;
             --sub-blue: #3498db;
+            --sidebar-bg: #ffffff;
         }
 
-        body { font-family: var(--primary-font); background-color: var(--main-bg); margin: 0; display: flex; flex-direction: column; align-items: center; }
+        body {
+            font-family: var(--primary-font);
+            background-color: var(--main-bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* 画面全体を使用 */
+            overflow: hidden;
+        }
 
-        /* 入力エリア */
-        header { width: 100%; background: white; padding: 25px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 100; }
-        .search-box { max-width: 600px; margin: 0 auto; padding: 0 20px; }
+        /* 上部検索バー */
+        header {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+        .search-box {
+            max-width: 800px;
+            margin: 0;
+        }
         input[type="text"] {
-            width: 100%; padding: 18px 28px; font-size: 26px; 
-            border: 4px solid #e1e8ed; border-radius: 100px; 
+            width: 100%; padding: 12px 25px; font-size: 22px; 
+            border: 3px solid #e1e8ed; border-radius: 50px; 
             outline: none; font-family: var(--primary-font);
             transition: border-color 0.2s;
         }
         input[type="text"]:focus { border-color: var(--accent-orange); }
 
-        /* 結果エリア */
-        main { width: 95%; max-width: 1100px; padding: 30px 0; display: flex; flex-direction: column; align-items: center; gap: 25px; }
-
-        /* 【メイン】入力した文字 */
-        .main-focus {
-            background: white; width: 100%; max-width: 600px;
-            padding: 40px; border-radius: 35px; border: 5px solid var(--accent-orange);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center;
+        /* メインコンテンツ（左右分割） */
+        .app-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
         }
-        .huge-text { font-size: 140px; color: #1a202c; line-height: 1.3; }
 
-        /* 【サブ】候補タイル */
-        .sub-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px; width: 100%;
+        /* 左カラム（3/4）：メインお手本 */
+        .main-column {
+            flex: 3; /* 全体の3/4 */
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
         }
+
+        .focus-card {
+            background: white;
+            width: 100%;
+            max-width: 700px;
+            padding: 50px;
+            border-radius: 30px;
+            border: 6px solid var(--accent-orange);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .huge-text {
+            font-size: 180px; /* さらに大きく表示 */
+            color: #1a202c;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+
+        /* 右カラム（1/4）：他の候補タイル */
+        .side-column {
+            flex: 1; /* 全体の1/4 */
+            background-color: var(--sidebar-bg);
+            border-left: 2px solid #e2e8f0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .side-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #718096;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .sub-card {
-            background: white; padding: 20px; border-radius: 20px;
-            display: flex; align-items: center; gap: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 10px solid var(--sub-blue);
-            cursor: pointer; transition: transform 0.2s;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
         }
-        .sub-card:hover { transform: scale(1.02); }
-        .sub-kanji { font-size: 55px; color: #2d3748; }
-        .sub-info { font-size: 16px; color: #4a5568; line-height: 1.5; font-weight: bold; }
+
+        .sub-card:hover {
+            border-color: var(--sub-blue);
+            background: #f0f7ff;
+            transform: translateX(-5px);
+        }
+
+        .sub-kanji {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 5px;
+            color: #2d3748;
+        }
+
+        .sub-info {
+            font-size: 13px;
+            color: #4a5568;
+            line-height: 1.4;
+        }
 
         ruby { ruby-align: center; }
         rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
+
+        @media (max-width: 850px) {
+            .app-layout { flex-direction: column; }
+            .side-column { flex: none; height: 300px; border-left: none; border-top: 2px solid #e2e8f0; }
+        }
     </style>
 </head>
 <body>
 
 <header>
     <div class="search-box">
-        <input type="text" id="input-text" placeholder="ここに 文字をいれてね！" autocomplete="off">
+        <input type="text" id="input-text" placeholder="文字をいれると すぐに お手本が 出るよ！" autocomplete="off">
     </div>
 </header>
 
-<main id="result-area">
+<div class="app-layout">
+    <main class="main-column" id="main-column">
+        <div id="hint-msg" style="color:#a0aec0; font-size:24px; margin-top:100px;">
+            👈 左上のまどに、文字を入力してね！
+        </div>
+        <div id="main-target" style="width:100%; display:none;">
+            </div>
     </main>
+
+    <aside class="side-column">
+        <div class="side-header">💡 ほかにもあるよ</div>
+        <div id="suggestion-list">
+            </div>
+    </aside>
+</div>
 
 <script>
     const dictionary = {
@@ -80,79 +173,74 @@
         ],
         "きかい": [
             {kanji:"機械", r:"きかい", m:"マシン・ロボット"},
-            {kanji:"機会", r:"きかい", m:"チャンス・ちょうどよい時"}
+            {kanji:"機会", r:"きかい", m:"チャンス・ちょうどよい時"},
+            {kanji:"器械", r:"きかい", m:"道具（とび箱など）"}
         ]
     };
 
     const input = document.getElementById('input-text');
 
-    // 入力するたびに動く（リアルタイム）
     input.addEventListener('input', async () => {
         const val = input.value.trim();
-        const area = document.getElementById('result-area');
-        
         if(!val) {
-            area.innerHTML = '<p style="color:#a0aec0; font-size:20px;">🔍 打ち込むと すぐに お手本が 出るよ！</p>';
+            document.getElementById('hint-msg').style.display = 'block';
+            document.getElementById('main-target').style.display = 'none';
+            document.getElementById('suggestion-list').innerHTML = '';
             return;
         }
 
         const hasKanji = /[一-龠]/.test(val);
         let reading = hasKanji ? await fetchReading(val) : val;
         
-        // --- 表示ロジック ---
         let mainObj = { kanji: val, r: reading, m: "" };
-        let suggestions = dictionary[reading] || [];
+        let allOptions = dictionary[reading] || [];
 
-        // 入力したものが辞書にあるなら、その意味をメインに表示
-        const dictMatch = suggestions.find(s => s.kanji === val);
+        const dictMatch = allOptions.find(s => s.kanji === val);
         if(dictMatch) mainObj.m = dictMatch.m;
 
-        // メイン以外をサブ候補にする
-        const subList = suggestions.filter(s => s.kanji !== val);
+        const subList = allOptions.filter(s => s.kanji !== val);
 
-        render(mainObj, subList);
+        renderUI(mainObj, subList);
     });
 
-    function render(main, subs) {
-        const area = document.getElementById('result-area');
-        
-        // メインカードのHTML
-        let html = `
-            <div class="main-focus">
-                <div style="color:#e67e22; font-weight:bold; margin-bottom:10px;">✨ いま 入力している 文字</div>
+    function renderUI(main, subs) {
+        document.getElementById('hint-msg').style.display = 'none';
+        const target = document.getElementById('main-target');
+        target.style.display = 'block';
+
+        // メインエリアの更新
+        target.innerHTML = `
+            <div class="focus-card">
                 <div class="huge-text">
                     <ruby>${main.kanji}<rt>${main.r}</rt></ruby>
                 </div>
-                <div style="font-size:22px; color:#4a5568; margin-top:15px; background:#fffaf0; padding:10px; border-radius:10px;">
-                    ${main.m || '（じしょに ない言葉 または 熟語です）'}
+                <div style="font-size:24px; color:#4a5568; background:#fffaf0; padding:20px; border-radius:15px; border:1px dashed #feebc8;">
+                    ${main.m || '（じしょに ない言葉です。形を よく見てね！）'}
                 </div>
             </div>
         `;
 
-        // サブ候補（タイル）のHTML
-        if(subs.length > 0) {
-            html += `<div style="width:100%; font-weight:bold; color:#34495e; font-size:18px; margin-top:20px;">💡 ほかには こんな漢字も あるよ：</div>`;
-            html += `<div class="sub-grid">`;
+        // サイドエリアの更新
+        const side = document.getElementById('suggestion-list');
+        side.innerHTML = '';
+        if(subs.length === 0) {
+            side.innerHTML = '<div style="color:#cbd5e0; font-size:14px;">ほかの こうほは ありません</div>';
+        } else {
             subs.forEach(item => {
-                html += `
-                    <div class="sub-card" onclick="setMain('${item.kanji}')">
-                        <div class="sub-kanji"><ruby>${item.kanji}<rt>${item.r}</rt></ruby></div>
-                        <div class="sub-info">${item.m}</div>
-                    </div>
+                const card = document.createElement('div');
+                card.className = 'sub-card';
+                card.onclick = () => {
+                    input.value = item.kanji;
+                    input.dispatchEvent(new Event('input'));
+                };
+                card.innerHTML = `
+                    <span class="sub-kanji"><ruby>${item.kanji}<rt>${item.r}</rt></ruby></span>
+                    <div class="sub-info">${item.m}</div>
                 `;
+                side.appendChild(card);
             });
-            html += `</div>`;
         }
-
-        area.innerHTML = html;
     }
-
-    // 候補をクリックしたとき
-    window.setMain = function(kanji) {
-        input.value = kanji;
-        // 入力イベントを手動で発生させて再描画
-        input.dispatchEvent(new Event('input'));
-    };
 
     async function fetchReading(kanji) {
         try {
