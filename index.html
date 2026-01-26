@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ絶対表示版）</title>
+    <title>かんじ・でか辞書（義務教育対応版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -50,7 +50,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             display: flex; flex-direction: column; align-items: center;
             justify-content: center;
-            transition: all 0.3s ease;
         }
 
         .huge-text-wrapper {
@@ -60,6 +59,7 @@
 
         .huge-text {
             display: inline-block; color: #1a202c; line-height: 1.1;
+            transition: font-size 0.3s ease;
         }
 
         .side-column {
@@ -79,7 +79,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」や「学校」とうってみてね！" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「かんじ」や「学校」とうってみてね！" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -88,7 +88,7 @@
             <div class="huge-text-wrapper" id="text-wrapper">
                 <div class="huge-text" id="huge-text"></div>
             </div>
-            <div id="status-label" style="font-size:14px; color:#cbd5e0; margin-top:10px;"></div>
+            <div style="font-size:14px; color:#cbd5e0; margin-top:10px;">義務教育 9年間でならう漢字に対応</div>
         </div>
     </main>
 
@@ -99,49 +99,41 @@
 </div>
 
 <script>
-    // --- 【強化版】内蔵ミニ辞書 ---
-    // APIが遅いときでも、これらは瞬時にルビが出ます
-    const localDict = {
-        "漢字": "かんじ", "学校": "がっこう", "練習": "れんしゅう", "先生": "せんせい",
-        "勉強": "べんきょう", "日本": "にっぽん", "一見": "いっけん", "言葉": "ことば"
-    };
-
     const input = document.getElementById('input-text');
     const hugeText = document.getElementById('huge-text');
     const wrapper = document.getElementById('text-wrapper');
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // 読みを取得するメイン関数
-    async function getReading(text) {
-        if (!text) return "";
+    // --- 漢字解析APIの実行 ---
+    async function fetchCandidatesAndReading(text) {
+        if (!text) return { candidates: [], reading: "" };
         
-        // 1. まず内蔵辞書をチェック
-        if (localDict[text]) return localDict[text];
+        const hasKanji = /[一-龠]/.test(text);
+        let reading = "";
+        let candidates = [];
 
-        // 2. Google APIへ問い合わせ
         try {
-            const url = `https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data && data[0] && data[0][1] && data[0][1][0]) {
-                return data[0][1][0];
+            if (hasKanji) {
+                // 1. 漢字入力時：読みを取得
+                const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
+                const data = await res.json();
+                reading = data[0][1][0];
+                // その読みで他の漢字も探す
+                const res2 = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
+                const data2 = await res2.json();
+                candidates = data2[0][1].filter(c => /[一-龠]/.test(c));
+            } else {
+                // 2. ひらがな入力時：漢字候補（頻度順）を取得
+                const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
+                const data = await res.json();
+                candidates = data[0][1].filter(c => /[一-龠]/.test(c));
+                reading = text;
             }
         } catch (e) {
-            console.log("API通信エラー: ", e);
+            console.error(e);
         }
-
-        return ""; // どうしてもダメなとき
-    }
-
-    async function getCandidates(hira) {
-        if (!hira) return [];
-        try {
-            const url = `https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            return data[0][1].filter(c => /[一-龠]/.test(c)).map(c => ({kanji: c, r: hira}));
-        } catch (e) { return []; }
+        return { candidates, reading };
     }
 
     function adjustFontSize() {
@@ -161,50 +153,46 @@
 
         if(!val) {
             target.style.display = 'none';
+            document.getElementById('side-title').style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
             return;
         }
 
-        // 入力のたびにチラつかないよう、少し待つ
         timer = setTimeout(async () => {
+            const result = await fetchCandidatesAndReading(val);
+            const hasKanji = /[一-龠]/.test(val);
+
+            let mainKanji = hasKanji ? val : (result.candidates[0] || val);
+            let mainReading = result.reading;
+
+            // 画面表示
             target.style.display = 'flex';
+            hugeText.innerHTML = `<ruby>${mainKanji}<rt>${mainReading}</rt></ruby>`;
             
-            // 読みの取得（ここが一番大事）
-            const reading = await getReading(val);
-            
-            // 表示の更新
-            if (reading) {
-                hugeText.innerHTML = `<ruby>${val}<rt>${reading}</rt></ruby>`;
-            } else {
-                hugeText.innerHTML = val; // 読みが取れなかったら漢字のみ
-            }
+            // サイドバー（候補）の更新
+            renderSubs(result.candidates, mainKanji, mainReading);
             
             adjustFontSize();
-
-            // 候補の表示（ひらがな入力の時に役立つ）
-            const searchReading = reading || val;
-            const candidates = await getCandidates(searchReading);
-            renderSubs(candidates, val, searchReading);
-            
-        }, 350); 
+        }, 300);
     });
 
-    function renderSubs(candidates, currentVal, reading) {
+    function renderSubs(candidates, currentKanji, reading) {
         const side = document.getElementById('suggestion-list');
         const sideTitle = document.getElementById('side-title');
         side.innerHTML = '';
-        const filtered = candidates.filter(c => c.kanji !== currentVal).slice(0, 10);
+        
+        const filtered = candidates.filter(c => c !== currentKanji).slice(0, 10);
 
         if (filtered.length > 0) {
             sideTitle.style.display = 'block';
-            filtered.forEach(item => {
+            filtered.forEach(kanji => {
                 const card = document.createElement('div');
                 card.className = 'sub-card';
                 card.onclick = () => {
-                    input.value = item.kanji;
+                    input.value = kanji;
                     input.dispatchEvent(new Event('input'));
                 };
-                card.innerHTML = `<span style="font-size:24px;"><ruby>${item.kanji}<rt>${reading}</rt></ruby></span>`;
+                card.innerHTML = `<span style="font-size:24px;"><ruby>${kanji}<rt>${reading}</rt></ruby></span>`;
                 side.appendChild(card);
             });
         } else {
