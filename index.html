@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ確定版）</title>
+    <title>かんじ・でか辞書（ルビ修正版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
             --main-bg: #f5f7f9;
             --accent-orange: #e67e22;
-            --sidebar-bg: #ffffff;
         }
 
         body {
@@ -62,7 +61,7 @@
         }
 
         .side-column {
-            flex: 1; background-color: var(--sidebar-bg);
+            flex: 1; background-color: #ffffff;
             border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto;
         }
 
@@ -78,7 +77,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="漢字をいれても ルビがでるよ！" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「学校」など漢字を入れてみてね！" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -104,23 +103,33 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // Google APIを使って読み（ふりがな）を取得する
-    async function fetchReading(text) {
+    // より確実に「漢字から読み」を取得するための関数
+    async function getReading(text) {
         if (!text) return "";
         try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
-            const data = await res.json();
-            return data[0][1][0]; // 取得した読みの1番目を返す
+            // 日本語入力の「かな変換」APIを利用
+            const url = `https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            // APIの結果から最も可能性の高い読みを抽出
+            if (data && data[0] && data[0][1]) {
+                return data[0][1][0];
+            }
+            return "";
         } catch (e) {
+            console.error("読みの取得に失敗しました", e);
             return "";
         }
     }
 
-    // 漢字の候補リストを取得する
-    async function fetchCandidates(hira) {
+    // 読みから他の漢字候補を探す
+    async function getCandidates(hira) {
+        if (!hira) return [];
         try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
-            const data = await res.json();
+            const url = `https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`;
+            const response = await fetch(url);
+            const data = await response.json();
             return data[0][1].filter(c => /[一-龠]/.test(c)).map(c => ({kanji: c, r: hira}));
         } catch (e) { return []; }
     }
@@ -144,23 +153,25 @@
 
         if(!val) {
             target.style.display = 'none';
-            document.getElementById('side-list').innerHTML = '';
+            document.getElementById('suggestion-list').innerHTML = '';
+            document.getElementById('side-title').style.display = 'none';
             return;
         }
 
-        // 入力から300ms後に処理（目が疲れないための待ち時間）
         timer = setTimeout(async () => {
-            // 1. まず読み（ふりがな）を確定させる
-            const reading = await fetchReading(val);
+            // 読みを取得
+            const reading = await getReading(val);
             
-            // 2. メイン表示を更新
             target.style.display = 'flex';
-            hugeText.innerHTML = `<ruby>${val}<rt>${reading}</rt></ruby>`;
+            // ルビを付けて表示（読みが取れなかった場合はルビなし）
+            hugeText.innerHTML = reading ? `<ruby>${val}<rt>${reading}</rt></ruby>` : val;
             
-            // 3. 他の漢字（候補）を探す
-            const candidates = await fetchCandidates(reading);
-            renderSubs(candidates, val, reading);
-
+            // 候補の取得
+            if (reading) {
+                const candidates = await getCandidates(reading);
+                renderSubs(candidates, val, reading);
+            }
+            
             adjustFontSize();
         }, 300);
     });
