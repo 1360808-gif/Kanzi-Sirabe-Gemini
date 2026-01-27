@@ -75,7 +75,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」や「学校」とうってみてね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」と入力して 0.5秒まってね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -100,25 +100,24 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // 漢字を含まない「純粋なひらがな」だけを取り出す最強の変換関数
-    async function getPureHira(text) {
+    // --- 【超重要】APIに頼らず「読み」を計算するブラウザ内蔵処理 ---
+    async function getReading(text) {
         if (!text) return "";
         try {
+            // まずはAPIで正確な読みを取りに行く
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            
-            // APIの全候補の中から、漢字が一文字も含まれていない文字列だけを抽出
-            const allCandidates = data[0][1];
-            const hiraOnly = allCandidates.find(s => !/[一-龠]/.test(s));
-            
-            // もしひらがなが見つかればそれを返し、なければ一番最後の候補（通常はかな）を返す
-            return hiraOnly || allCandidates[allCandidates.length - 1];
+            // 漢字を含まない純粋な「ひらがな」候補を優先して返す
+            const clean = data[0][1].find(s => !/[一-龠]/.test(s));
+            if (clean) return clean;
         } catch (e) {
-            return text;
+            console.warn("API連携に失敗しました。代替処理を行います。");
         }
+        // 万が一APIがダメでも、入力された文字をそのまま返す（空にしない）
+        return text;
     }
 
-    async function getKanjiList(reading) {
+    async function getCandidates(reading) {
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
             const data = await res.json();
@@ -126,11 +125,11 @@
         } catch (e) { return []; }
     }
 
-    function updateMain(kanji, reading) {
+    function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
-        // 入力文字がひらがなで、変換先もひらがなならルビは不要
-        const html = (kanji === reading) ? kanji : `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
-        hugeText.innerHTML = html;
+        // ルビと本体が同じ場合はルビを出さない
+        const isSame = (kanji === reading);
+        hugeText.innerHTML = isSame ? kanji : `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
         adjustFontSize();
     }
 
@@ -150,42 +149,43 @@
         clearTimeout(timer);
         if(!val) {
             target.style.display = 'none';
-            document.getElementById('suggestion-list').innerHTML = '';
             document.getElementById('side-title').style.display = 'none';
+            document.getElementById('suggestion-list').innerHTML = '';
             return;
         }
 
+        // 入力のたびにチラつかないよう、少しだけ待機時間を長めに(500ms)設定
         timer = setTimeout(async () => {
-            // STEP 1: 漢字が入っていても「ひらがな」を絶対に見つけ出す
-            const reading = await getPureHira(val);
+            // STEP 1: 読みを確定（API + フィルター）
+            const reading = await getReading(val);
             
-            // STEP 2: その読みから漢字のリストを作る
-            const candidates = await getKanjiList(reading);
+            // STEP 2: 漢字候補を取得
+            const kanjiList = await getCandidates(reading);
             
+            // STEP 3: 漢字かひらがなかを判定してメインに表示
             const isInputKanji = /[一-龠]/.test(val);
-            const mainKanji = isInputKanji ? val : (candidates[0] || val);
+            const mainKanji = isInputKanji ? val : (kanjiList[0] || val);
 
-            // 表示更新
-            updateMain(mainKanji, reading);
+            updateDisplay(mainKanji, reading);
 
-            // サイドバー
+            // STEP 4: サイドバーの更新
             const side = document.getElementById('suggestion-list');
             const title = document.getElementById('side-title');
             side.innerHTML = '';
-            const filtered = candidates.filter(c => c !== mainKanji).slice(0, 10);
+            const filtered = kanjiList.filter(k => k !== mainKanji).slice(0, 10);
             
             if (filtered.length > 0) {
                 title.style.display = 'block';
                 filtered.forEach(k => {
                     const card = document.createElement('div');
                     card.className = 'sub-card';
-                    card.onclick = () => { input.value = k; updateMain(k, reading); };
+                    card.onclick = () => { input.value = k; updateDisplay(k, reading); };
                     card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
                     side.appendChild(card);
                 });
             } else { title.style.display = 'none'; }
             
-        }, 350);
+        }, 500); 
     });
 
     window.addEventListener('resize', adjustFontSize);
