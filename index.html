@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（義務教育対応版）</title>
+    <title>かんじ・でか辞書（ルビ維持版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -59,7 +59,7 @@
 
         .huge-text {
             display: inline-block; color: #1a202c; line-height: 1.1;
-            transition: font-size 0.3s ease;
+            transition: font-size 0.2s ease;
         }
 
         .side-column {
@@ -79,7 +79,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「かんじ」や「学校」とうってみてね！" autocomplete="off">
+    <input type="text" id="input-text" placeholder="文字をいれると すぐに お手本が 出るよ！" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -105,35 +105,31 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // --- 漢字解析APIの実行 ---
-    async function fetchCandidatesAndReading(text) {
+    async function fetchAll(text) {
         if (!text) return { candidates: [], reading: "" };
+        const isHira = !(/[一-龠]/.test(text));
         
-        const hasKanji = /[一-龠]/.test(text);
-        let reading = "";
-        let candidates = [];
-
         try {
-            if (hasKanji) {
-                // 1. 漢字入力時：読みを取得
-                const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
-                const data = await res.json();
-                reading = data[0][1][0];
-                // その読みで他の漢字も探す
-                const res2 = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
-                const data2 = await res2.json();
-                candidates = data2[0][1].filter(c => /[一-龠]/.test(c));
-            } else {
-                // 2. ひらがな入力時：漢字候補（頻度順）を取得
-                const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
-                const data = await res.json();
-                candidates = data[0][1].filter(c => /[一-龠]/.test(c));
-                reading = text;
-            }
+            // 読みの取得
+            const rRes = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
+            const rData = await rRes.json();
+            const reading = rData[0][1][0];
+
+            // 漢字候補の取得
+            const cRes = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
+            const cData = await cRes.json();
+            const candidates = cData[0][1].filter(c => /[一-龠]/.test(c));
+
+            return { candidates, reading };
         } catch (e) {
-            console.error(e);
+            return { candidates: [], reading: text };
         }
-        return { candidates, reading };
+    }
+
+    function updateMainDisplay(kanji, reading) {
+        target.style.display = 'flex';
+        hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
+        adjustFontSize();
     }
 
     function adjustFontSize() {
@@ -147,10 +143,10 @@
         }
     }
 
+    // 入力時の処理
     input.addEventListener('input', () => {
         const val = input.value.trim();
         clearTimeout(timer);
-
         if(!val) {
             target.style.display = 'none';
             document.getElementById('side-title').style.display = 'none';
@@ -159,38 +155,33 @@
         }
 
         timer = setTimeout(async () => {
-            const result = await fetchCandidatesAndReading(val);
-            const hasKanji = /[一-龠]/.test(val);
-
-            let mainKanji = hasKanji ? val : (result.candidates[0] || val);
-            let mainReading = result.reading;
-
-            // 画面表示
-            target.style.display = 'flex';
-            hugeText.innerHTML = `<ruby>${mainKanji}<rt>${mainReading}</rt></ruby>`;
+            const result = await fetchAll(val);
+            const isHira = !(/[一-龠]/.test(val));
+            const mainKanji = isHira ? (result.candidates[0] || val) : val;
             
-            // サイドバー（候補）の更新
-            renderSubs(result.candidates, mainKanji, mainReading);
-            
-            adjustFontSize();
+            updateMainDisplay(mainKanji, result.reading);
+            renderSubs(result.candidates, mainKanji, result.reading);
         }, 300);
     });
 
+    // サイドバーの更新
     function renderSubs(candidates, currentKanji, reading) {
         const side = document.getElementById('suggestion-list');
         const sideTitle = document.getElementById('side-title');
         side.innerHTML = '';
         
-        const filtered = candidates.filter(c => c !== currentKanji).slice(0, 10);
+        const filtered = candidates.filter(c => c !== currentKanji).slice(0, 12);
 
         if (filtered.length > 0) {
             sideTitle.style.display = 'block';
             filtered.forEach(kanji => {
                 const card = document.createElement('div');
                 card.className = 'sub-card';
+                // クリック時に読みも一緒に渡す
                 card.onclick = () => {
                     input.value = kanji;
-                    input.dispatchEvent(new Event('input'));
+                    updateMainDisplay(kanji, reading); // 読みを維持したまま表示更新
+                    renderSubs(candidates, kanji, reading); // リストも更新
                 };
                 card.innerHTML = `<span style="font-size:24px;"><ruby>${kanji}<rt>${reading}</rt></ruby></span>`;
                 side.appendChild(card);
