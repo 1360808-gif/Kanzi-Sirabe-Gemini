@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ維持版）</title>
+    <title>かんじ・でか辞書（ひらがなルビ確定版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -79,7 +79,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="文字をいれると すぐに お手本が 出るよ！" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」とうつと「かんじ」とルビがでるよ！" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -88,7 +88,6 @@
             <div class="huge-text-wrapper" id="text-wrapper">
                 <div class="huge-text" id="huge-text"></div>
             </div>
-            <div style="font-size:14px; color:#cbd5e0; margin-top:10px;">義務教育 9年間でならう漢字に対応</div>
         </div>
     </main>
 
@@ -105,24 +104,28 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    async function fetchAll(text) {
-        if (!text) return { candidates: [], reading: "" };
-        const isHira = !(/[一-龠]/.test(text));
-        
+    // どんな入力でも「ひらがな」の読みを返すようにリクエストを最適化
+    async function fetchHiraReading(text) {
+        if (!text) return "";
         try {
-            // 読みの取得
-            const rRes = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
-            const rData = await rRes.json();
-            const reading = rData[0][1][0];
-
-            // 漢字候補の取得
-            const cRes = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
-            const cData = await cRes.json();
-            const candidates = cData[0][1].filter(c => /[一-龠]/.test(c));
-
-            return { candidates, reading };
+            // 日本語(ja)からひらがな(ja-Hira)への変換を明示
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
+            const data = await res.json();
+            // 返ってきた結果が漢字を含まない（ひらがなである）ことを確認
+            return data[0][1][0];
         } catch (e) {
-            return { candidates: [], reading: text };
+            return text;
+        }
+    }
+
+    async function fetchKanjiCandidates(hira) {
+        if (!hira) return [];
+        try {
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
+            const data = await res.json();
+            return data[0][1].filter(c => /[一-龠]/.test(c));
+        } catch (e) {
+            return [];
         }
     }
 
@@ -143,7 +146,6 @@
         }
     }
 
-    // 入力時の処理
     input.addEventListener('input', () => {
         const val = input.value.trim();
         clearTimeout(timer);
@@ -155,16 +157,21 @@
         }
 
         timer = setTimeout(async () => {
-            const result = await fetchAll(val);
-            const isHira = !(/[一-龠]/.test(val));
-            const mainKanji = isHira ? (result.candidates[0] || val) : val;
+            // 1. 漢字だろうがひらがなだろうが、まずは「ひらがなの読み」を取得
+            const reading = await fetchHiraReading(val);
             
-            updateMainDisplay(mainKanji, result.reading);
-            renderSubs(result.candidates, mainKanji, result.reading);
+            // 2. その読みを元に漢字候補を取得
+            const candidates = await fetchKanjiCandidates(reading);
+            
+            // 3. メイン表示の決定
+            const isInputKanji = /[一-龠]/.test(val);
+            const mainKanji = isInputKanji ? val : (candidates[0] || val);
+
+            updateMainDisplay(mainKanji, reading);
+            renderSubs(candidates, mainKanji, reading);
         }, 300);
     });
 
-    // サイドバーの更新
     function renderSubs(candidates, currentKanji, reading) {
         const side = document.getElementById('suggestion-list');
         const sideTitle = document.getElementById('side-title');
@@ -177,11 +184,10 @@
             filtered.forEach(kanji => {
                 const card = document.createElement('div');
                 card.className = 'sub-card';
-                // クリック時に読みも一緒に渡す
                 card.onclick = () => {
                     input.value = kanji;
-                    updateMainDisplay(kanji, reading); // 読みを維持したまま表示更新
-                    renderSubs(candidates, kanji, reading); // リストも更新
+                    updateMainDisplay(kanji, reading);
+                    renderSubs(candidates, kanji, reading);
                 };
                 card.innerHTML = `<span style="font-size:24px;"><ruby>${kanji}<rt>${reading}</rt></ruby></span>`;
                 side.appendChild(card);
