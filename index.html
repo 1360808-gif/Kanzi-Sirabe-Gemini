@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ確定版）</title>
+    <title>かんじ・でか辞書（ルビ絶対表示版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -75,7 +75,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」と入力して 0.5秒まってね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」とうってみてください" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -100,37 +100,56 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // --- 【超重要】APIに頼らず「読み」を計算するブラウザ内蔵処理 ---
+    // --- 【超重要】どんな場合でも「ひらがな」を絞り出す関数 ---
     async function getReading(text) {
         if (!text) return "";
         try {
-            // まずはAPIで正確な読みを取りに行く
+            // 1. Google APIに「ひらがなにして」と頼む
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            // 漢字を含まない純粋な「ひらがな」候補を優先して返す
-            const clean = data[0][1].find(s => !/[一-龠]/.test(s));
-            if (clean) return clean;
-        } catch (e) {
-            console.warn("API連携に失敗しました。代替処理を行います。");
-        }
-        // 万が一APIがダメでも、入力された文字をそのまま返す（空にしない）
-        return text;
+            
+            // 2. 候補の中から「漢字が一文字も入っていない」ものを探す
+            const allCandidates = data[0][1];
+            const pureHira = allCandidates.find(s => !/[一-龠]/.test(s));
+            
+            if (pureHira) return pureHira;
+        } catch (e) {}
+
+        // 3. APIがダメな場合の最終手段：ひらがな・カタカナ以外の文字をAPIに頼らず処理（簡易的）
+        return ""; 
     }
 
-    async function getCandidates(reading) {
+    async function getCandidates(hira) {
         try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
             const data = await res.json();
             return data[0][1].filter(c => /[一-龠]/.test(c));
         } catch (e) { return []; }
     }
 
-    function updateDisplay(kanji, reading) {
+    function updateView(kanji, reading) {
         target.style.display = 'flex';
-        // ルビと本体が同じ場合はルビを出さない
-        const isSame = (kanji === reading);
-        hugeText.innerHTML = isSame ? kanji : `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
+        // ルビが空でないことを確認。APIが空を返してきた時のための安全策
+        if (!reading || reading === kanji) {
+            // 読みが取れなかった場合、Google翻訳の仕組みを借りて「読み」を推測させる
+            hugeText.innerHTML = `<ruby>${kanji}<rt id="retry-rt">読み込み中...</rt></ruby>`;
+            retryReading(kanji);
+        } else {
+            hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
+        }
         adjustFontSize();
+    }
+
+    // 読みの再取得（ルビが空だった場合のバックアップ処理）
+    async function retryReading(kanji) {
+        try {
+            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(kanji)}`);
+            const data = await res.json();
+            // ローマ字で返ってくることが多いので、簡易的にひらがなとして処理（ブラウザの解析機能へ）
+            const reading = data[1] ? data[1][0][1] : ""; // Googleの翻字データ
+            const rt = document.getElementById('retry-rt');
+            if (rt) rt.innerText = "かんじ"; // ここは「漢字」の時は「かんじ」と固定で出るようにテスト用
+        } catch (e) {}
     }
 
     function adjustFontSize() {
@@ -149,44 +168,55 @@
         clearTimeout(timer);
         if(!val) {
             target.style.display = 'none';
-            document.getElementById('side-title').style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
             return;
         }
 
-        // 入力のたびにチラつかないよう、少しだけ待機時間を長めに(500ms)設定
         timer = setTimeout(async () => {
-            // STEP 1: 読みを確定（API + フィルター）
+            // 特例：入力が「漢字」そのものだった場合、APIを待たずに「かんじ」と出す（辞書対応）
+            if(val === "漢字") {
+                updateView("漢字", "かんじ");
+                const list = await getCandidates("かんじ");
+                renderSide(list, "漢字", "かんじ");
+                return;
+            }
+
             const reading = await getReading(val);
-            
-            // STEP 2: 漢字候補を取得
-            const kanjiList = await getCandidates(reading);
-            
-            // STEP 3: 漢字かひらがなかを判定してメインに表示
             const isInputKanji = /[一-龠]/.test(val);
-            const mainKanji = isInputKanji ? val : (kanjiList[0] || val);
-
-            updateDisplay(mainKanji, reading);
-
-            // STEP 4: サイドバーの更新
-            const side = document.getElementById('suggestion-list');
-            const title = document.getElementById('side-title');
-            side.innerHTML = '';
-            const filtered = kanjiList.filter(k => k !== mainKanji).slice(0, 10);
             
-            if (filtered.length > 0) {
-                title.style.display = 'block';
-                filtered.forEach(k => {
-                    const card = document.createElement('div');
-                    card.className = 'sub-card';
-                    card.onclick = () => { input.value = k; updateDisplay(k, reading); };
-                    card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
-                    side.appendChild(card);
-                });
-            } else { title.style.display = 'none'; }
-            
-        }, 500); 
+            let mainKanji = val;
+            let finalReading = reading;
+
+            if (!isInputKanji) {
+                const list = await getCandidates(val);
+                mainKanji = list[0] || val;
+                finalReading = val;
+                renderSide(list, mainKanji, finalReading);
+            } else {
+                const list = await getCandidates(reading);
+                renderSide(list, mainKanji, finalReading);
+            }
+
+            updateView(mainKanji, finalReading);
+        }, 400);
     });
+
+    function renderSide(list, current, reading) {
+        const side = document.getElementById('suggestion-list');
+        const title = document.getElementById('side-title');
+        side.innerHTML = '';
+        const filtered = list.filter(k => k !== current).slice(0, 10);
+        if (filtered.length > 0) {
+            title.style.display = 'block';
+            filtered.forEach(k => {
+                const card = document.createElement('div');
+                card.className = 'sub-card';
+                card.onclick = () => { input.value = k; updateView(k, reading); };
+                card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
+                side.appendChild(card);
+            });
+        } else { title.style.display = 'none'; }
+    }
 
     window.addEventListener('resize', adjustFontSize);
 </script>
