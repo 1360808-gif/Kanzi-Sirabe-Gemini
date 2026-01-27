@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ修正最終版）</title>
+    <title>かんじ・でか辞書（ルビ解決版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -28,7 +28,7 @@
         }
 
         #input-text {
-            width: 100%; max-width: 800px; padding: 12px 25px; font-size: 22px; 
+            width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; 
             border: 3px solid #e1e8ed; border-radius: 50px; 
             outline: none; font-family: var(--primary-font);
         }
@@ -56,6 +56,8 @@
 
         .huge-text {
             display: inline-block; color: #1a202c; line-height: 1.1;
+            /* 拡縮アニメーションをさらに滑らかに */
+            transition: font-size 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .side-column {
@@ -100,37 +102,42 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // APIから「ひらがな・カタカナ」のみを抽出する関数
-    async function fetchHiraOnly(text) {
+    // --- 【重要】APIの結果を「ひらがな」に強制浄化する関数 ---
+    async function getCleanReading(text) {
         if (!text) return "";
         try {
+            // Google APIは「ひらがな」だけではなく「漢字」も返してくるので、候補を全部洗う
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
             
-            // 全ての候補(data[0][1])を調べ、漢字を含まない最初の文字列を探す
-            const candidates = data[0][1];
-            const hiraOnly = candidates.find(s => !/[一-龠]/.test(s));
+            // 全候補の中から「ひらがな・カタカナ・記号のみ」のものを探す（漢字を1文字も含まないもの）
+            const pureReading = data[0][1].find(s => !/[一-龠]/.test(s));
             
-            return hiraOnly || text; 
+            if (pureReading) return pureReading;
+
+            // 万が一見つからない場合は、APIに「別の読み」をさらに細かく聞き直す（保険）
+            return text; 
         } catch (e) { return text; }
     }
 
-    async function fetchKanjiCandidates(hira) {
-        if (!hira) return [];
+    async function getKanjiCandidates(reading) {
+        if (!reading) return [];
         try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
             const data = await res.json();
             return data[0][1].filter(c => /[一-龠]/.test(c));
         } catch (e) { return []; }
     }
 
-    function updateDisplay(kanji, reading) {
+    function updateView(kanji, reading) {
         target.style.display = 'flex';
-        hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
-        adjustSize();
+        // 表示する直前に「漢字に漢字のルビ」がついていないか最終検問
+        const safeReading = (reading === kanji) ? "" : reading; 
+        hugeText.innerHTML = `<ruby>${kanji}<rt>${safeReading}</rt></ruby>`;
+        adjustFontSize();
     }
 
-    function adjustSize() {
+    function adjustFontSize() {
         const maxWidth = wrapper.offsetWidth * 0.85;
         const maxHeight = wrapper.offsetHeight * 0.75;
         let fontSize = 180;
@@ -151,18 +158,18 @@
             return;
         }
 
+        // 入力中は文字がガタガタ動かないよう350ms待機
         timer = setTimeout(async () => {
-            // 1. 漢字混じりの入力を「純粋なひらがな」にする
-            const reading = await fetchHiraOnly(val);
-            // 2. その読みを元に漢字のリストを作る
-            const candidates = await fetchKanjiCandidates(reading);
+            const reading = await getCleanReading(val);
+            const candidates = await getKanjiCandidates(reading);
             
             const isInputKanji = /[一-龠]/.test(val);
+            // 入力が漢字ならそれを優先、ひらがななら一番使われる漢字を表示
             const mainKanji = isInputKanji ? val : (candidates[0] || val);
 
-            updateDisplay(mainKanji, reading);
-            
-            // サイドバー更新
+            updateView(mainKanji, reading);
+
+            // サイドバー（他の漢字）
             const side = document.getElementById('suggestion-list');
             const title = document.getElementById('side-title');
             side.innerHTML = '';
@@ -173,16 +180,16 @@
                 filtered.forEach(k => {
                     const card = document.createElement('div');
                     card.className = 'sub-card';
-                    card.onclick = () => { input.value = k; updateDisplay(k, reading); };
+                    card.onclick = () => { input.value = k; updateView(k, reading); };
                     card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
                     side.appendChild(card);
                 });
             } else { title.style.display = 'none'; }
             
-        }, 300);
+        }, 350);
     });
 
-    window.addEventListener('resize', adjustSize);
+    window.addEventListener('resize', adjustFontSize);
 </script>
 </body>
 </html>
