@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ひらがなルビ徹底版）</title>
+    <title>かんじ・でか辞書（ルビ修正最終版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -75,7 +75,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="漢字をいれても ルビは「かな」になるよ" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」といれてみてください" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -100,19 +100,22 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // APIから「ひらがな」だけを抜き出すフィルター
-    async function fetchPureHira(text) {
+    // APIから「ひらがな・カタカナ」のみを抽出する関数
+    async function fetchHiraOnly(text) {
         if (!text) return "";
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            // 候補リストの中から「漢字を含まない」最初のものを見つける
-            const hiraOnly = data[0][1].find(str => !/[一-龠]/.test(str));
-            return hiraOnly || text;
+            
+            // 全ての候補(data[0][1])を調べ、漢字を含まない最初の文字列を探す
+            const candidates = data[0][1];
+            const hiraOnly = candidates.find(s => !/[一-龠]/.test(s));
+            
+            return hiraOnly || text; 
         } catch (e) { return text; }
     }
 
-    async function fetchKanjiList(hira) {
+    async function fetchKanjiCandidates(hira) {
         if (!hira) return [];
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
@@ -121,7 +124,7 @@
         } catch (e) { return []; }
     }
 
-    function updateMain(kanji, reading) {
+    function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
         hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
         adjustSize();
@@ -149,41 +152,35 @@
         }
 
         timer = setTimeout(async () => {
-            // ここで「漢字を含まない読み」を確実にゲットする
-            const reading = await fetchPureHira(val);
-            const candidates = await fetchKanjiList(reading);
+            // 1. 漢字混じりの入力を「純粋なひらがな」にする
+            const reading = await fetchHiraOnly(val);
+            // 2. その読みを元に漢字のリストを作る
+            const candidates = await fetchKanjiCandidates(reading);
             
             const isInputKanji = /[一-龠]/.test(val);
             const mainKanji = isInputKanji ? val : (candidates[0] || val);
 
-            updateMain(mainKanji, reading);
-            renderList(candidates, mainKanji, reading);
+            updateDisplay(mainKanji, reading);
+            
+            // サイドバー更新
+            const side = document.getElementById('suggestion-list');
+            const title = document.getElementById('side-title');
+            side.innerHTML = '';
+            const filtered = candidates.filter(c => c !== mainKanji).slice(0, 10);
+            
+            if (filtered.length > 0) {
+                title.style.display = 'block';
+                filtered.forEach(k => {
+                    const card = document.createElement('div');
+                    card.className = 'sub-card';
+                    card.onclick = () => { input.value = k; updateDisplay(k, reading); };
+                    card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
+                    side.appendChild(card);
+                });
+            } else { title.style.display = 'none'; }
+            
         }, 300);
     });
-
-    function renderList(candidates, current, reading) {
-        const side = document.getElementById('suggestion-list');
-        const title = document.getElementById('side-title');
-        side.innerHTML = '';
-        const filtered = candidates.filter(c => c !== current).slice(0, 12);
-
-        if (filtered.length > 0) {
-            title.style.display = 'block';
-            filtered.forEach(kanji => {
-                const card = document.createElement('div');
-                card.className = 'sub-card';
-                card.onclick = () => {
-                    input.value = kanji;
-                    updateMain(kanji, reading);
-                    renderList(candidates, kanji, reading);
-                };
-                card.innerHTML = `<span style="font-size:24px;"><ruby>${kanji}<rt>${reading}</rt></ruby></span>`;
-                side.appendChild(card);
-            });
-        } else {
-            title.style.display = 'none';
-        }
-    }
 
     window.addEventListener('resize', adjustSize);
 </script>
