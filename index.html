@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（完全解決版）</title>
+    <title>かんじ・でか辞書（ルビ確定版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -75,7 +75,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」や「がっこう」とうってみてね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」や「学校」とうってみてね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -100,31 +100,37 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // 1. 漢字が含まれていても、強制的に「ひらがな」を返す関数
-    async function getHiraReading(text) {
+    // 漢字を含まない「純粋なひらがな」だけを取り出す最強の変換関数
+    async function getPureHira(text) {
+        if (!text) return "";
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            // 候補の中から漢字が入っていない最初のものを探す
-            const pureHira = data[0][1].find(s => !/[一-龠]/.test(s));
-            return pureHira || text;
-        } catch (e) { return text; }
+            
+            // APIの全候補の中から、漢字が一文字も含まれていない文字列だけを抽出
+            const allCandidates = data[0][1];
+            const hiraOnly = allCandidates.find(s => !/[一-龠]/.test(s));
+            
+            // もしひらがなが見つかればそれを返し、なければ一番最後の候補（通常はかな）を返す
+            return hiraOnly || allCandidates[allCandidates.length - 1];
+        } catch (e) {
+            return text;
+        }
     }
 
-    // 2. ひらがなから「漢字候補リスト」を頻度順に取得する関数
-    async function getKanjiOptions(hira) {
+    async function getKanjiList(reading) {
         try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(reading)}`);
             const data = await res.json();
             return data[0][1].filter(c => /[一-龠]/.test(c));
         } catch (e) { return []; }
     }
 
-    function updateMainDisplay(kanji, hira) {
+    function updateMain(kanji, reading) {
         target.style.display = 'flex';
-        // メインの漢字とルビが同じ（漢字がない）場合はルビを出さない
-        const rubyHTML = (kanji === hira) ? kanji : `<ruby>${kanji}<rt>${hira}</rt></ruby>`;
-        hugeText.innerHTML = rubyHTML;
+        // 入力文字がひらがなで、変換先もひらがなならルビは不要
+        const html = (kanji === reading) ? kanji : `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
+        hugeText.innerHTML = html;
         adjustFontSize();
     }
 
@@ -144,38 +150,37 @@
         clearTimeout(timer);
         if(!val) {
             target.style.display = 'none';
-            document.getElementById('side-title').style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
+            document.getElementById('side-title').style.display = 'none';
             return;
         }
 
         timer = setTimeout(async () => {
-            // STEP 1: 入力された文字の「ひらがな読み」を確定させる
-            const hiraReading = await getHiraReading(val);
+            // STEP 1: 漢字が入っていても「ひらがな」を絶対に見つけ出す
+            const reading = await getPureHira(val);
             
-            // STEP 2: その読みを元に「漢字候補」を出す
-            const kanjiCandidates = await getKanjiOptions(hiraReading);
+            // STEP 2: その読みから漢字のリストを作る
+            const candidates = await getKanjiList(reading);
             
-            // STEP 3: 表示ロジック
             const isInputKanji = /[一-龠]/.test(val);
-            // 入力が漢字ならそれ、ひらがななら第1候補の漢字をメインに
-            const mainKanji = isInputKanji ? val : (kanjiCandidates[0] || val);
+            const mainKanji = isInputKanji ? val : (candidates[0] || val);
 
-            updateMainDisplay(mainKanji, hiraReading);
+            // 表示更新
+            updateMain(mainKanji, reading);
 
-            // サイドバー：メイン以外の漢字を出す
+            // サイドバー
             const side = document.getElementById('suggestion-list');
             const title = document.getElementById('side-title');
             side.innerHTML = '';
-            const filtered = kanjiCandidates.filter(c => c !== mainKanji).slice(0, 10);
+            const filtered = candidates.filter(c => c !== mainKanji).slice(0, 10);
             
             if (filtered.length > 0) {
                 title.style.display = 'block';
                 filtered.forEach(k => {
                     const card = document.createElement('div');
                     card.className = 'sub-card';
-                    card.onclick = () => { input.value = k; updateMainDisplay(k, hiraReading); };
-                    card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${hiraReading}</rt></ruby></span>`;
+                    card.onclick = () => { input.value = k; updateMain(k, reading); };
+                    card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
                     side.appendChild(card);
                 });
             } else { title.style.display = 'none'; }
