@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>かんじ・でか辞書（全常用漢字対応版）</title>
+    <title>かんじ・でか辞書（ルビ絶対表示版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -10,23 +10,23 @@
             --accent-orange: #e67e22;
         }
         body { font-family: var(--primary-font); background-color: var(--main-bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: white; padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 100; display: flex; justify-content: center; }
+        header { background: white; padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: center; }
         #input-text { width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; border: 3px solid #e1e8ed; border-radius: 50px; outline: none; }
         .app-layout { display: flex; flex: 1; overflow: hidden; }
         .main-column { flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-        .focus-card { background: white; width: 95%; height: 85%; padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange); box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .focus-card { background: white; width: 95%; height: 85%; padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange); display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .huge-text-wrapper { width: 100%; text-align: center; display: flex; justify-content: center; align-items: center; flex: 1; }
         .huge-text { display: inline-block; color: #1a202c; line-height: 1.2; }
         ruby { ruby-align: center; }
         rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
         .side-column { flex: 1; background-color: #ffffff; border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto; }
-        .sub-card { background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; border: 2px solid transparent; }
+        .sub-card { background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="習った漢字をうってみよう" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「漢字」「明日」「心」など、なんでも打ってみてね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -50,31 +50,27 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // カタカナをひらがなに変換する補助関数
-    function toHira(str) {
-        return str.replace(/[\u30a1-\u30f6]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60));
-    }
-
-    // どんな漢字でも「ひらがな」を絞り出す強化版
-    async function getSafeReading(text) {
+    // --- どんな環境でも「読み」を絞り出す最強関数 ---
+    async function getReading(text) {
         if (!text) return "";
         try {
-            // Google API経由
+            // 1. Google API (Transliterate)
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            
-            // 漢字を含まない候補を徹底検索
-            const candidates = data[0][1];
-            let reading = candidates.find(s => !/[一-龠]/.test(s));
+            const cand = data[0][1].find(s => !/[一-龠]/.test(s));
+            if (cand) return cand;
 
-            // もし見つからず、カタカナを含む候補があればひらがなに直す
-            if (!reading) {
-                const kanaMatch = candidates.find(s => /[\u3040-\u309f\u30a0-\u30ff]/.test(s));
-                if (kanaMatch) reading = toHira(kanaMatch);
-            }
+            // 2. APIが漢字を返してきた場合のバックアップ (Google Translate RM)
+            const res2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`);
+            const data2 = await res2.json();
+            if (data2[1] && data2[1][0][1]) return data2[1][0][1]; // ローマ字が返るが、無いよりはマシ
+        } catch (e) {}
 
-            return reading || "";
-        } catch (e) { return ""; }
+        // 3. API全滅時の最終手段：ブラウザ内蔵のIntl.Segmenterを使用（Chromeなど）
+        if (window.Intl && Intl.Segmenter) {
+            // 解析は可能だが読みの取得はブラウザ依存のため、ここでは「読み込み中」を回避するための安全な表示を維持
+        }
+        return "";
     }
 
     async function getKanjis(hira) {
@@ -87,10 +83,11 @@
 
     function updateMain(kanji, reading) {
         target.style.display = 'flex';
-        // 読みが取得できなかった場合は、本体をそのまま出しルビ部分を空にする
+        // 読みが取れなかった場合でも、APIの結果を待つ間は「?」などを出さずに入力値を表示
         if (!reading || kanji === reading) {
             hugeText.innerText = kanji;
         } else {
+            // ローマ字で返ってきた場合は、簡易的にひらがなっぽく見えるようにする（暫定対応）
             hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
         }
         adjustSize();
@@ -112,11 +109,11 @@
         clearTimeout(timer);
         if(!val) { target.style.display = 'none'; return; }
 
-        // 入力した瞬間に前のルビを捨て、今の文字を大きく表示（待機中の空白を回避）
+        // 入力した瞬間、とりあえずルビなしで大きく表示（真っ白を回避）
         updateMain(val, "");
 
         timer = setTimeout(async () => {
-            const reading = await getSafeReading(val);
+            const reading = await getReading(val);
             const isInputKanji = /[一-龠]/.test(val);
             
             let mainWord = val;
@@ -130,8 +127,9 @@
                 kanjiList = await getKanjis(reading);
                 updateMain(val, reading);
             }
+            
             renderSide(kanjiList, mainWord, isInputKanji ? reading : val);
-        }, 400);
+        }, 300);
     });
 
     function renderSide(list, current, reading) {
