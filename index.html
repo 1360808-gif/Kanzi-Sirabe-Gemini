@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>かんじ・でか辞書（ルビ絶対表示版）</title>
+    <title>かんじ・でか辞書（ルビ確定版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -26,7 +26,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」「明日」「心」など、なんでも打ってみてね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「給食室」と漢字でうってみてね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -50,26 +50,23 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // --- どんな環境でも「読み」を絞り出す最強関数 ---
+    // --- 漢字を投げると「読み」を返す最強のバックアップ ---
     async function getReading(text) {
         if (!text) return "";
         try {
-            // 1. Google API (Transliterate)
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
+            // Google翻訳の読み上げ用翻字API（非常に強力で漢字を読み飛ばさない）
+            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`);
             const data = await res.json();
-            const cand = data[0][1].find(s => !/[一-龠]/.test(s));
-            if (cand) return cand;
-
-            // 2. APIが漢字を返してきた場合のバックアップ (Google Translate RM)
-            const res2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`);
-            const data2 = await res2.json();
-            if (data2[1] && data2[1][0][1]) return data2[1][0][1]; // ローマ字が返るが、無いよりはマシ
+            
+            // APIから読み（ひらがな/ローマ字）を抽出
+            if (data[1] && data[1][0] && data[1][0][1]) {
+                // ここで取得できるのはローマ字の場合が多いので、
+                // さらにひらがな化APIに投げて正確なひらがなを得る
+                const hiraRes = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
+                const hiraData = await hiraRes.json();
+                return hiraData[0][1].find(s => !/[一-龠]/.test(s)) || text;
+            }
         } catch (e) {}
-
-        // 3. API全滅時の最終手段：ブラウザ内蔵のIntl.Segmenterを使用（Chromeなど）
-        if (window.Intl && Intl.Segmenter) {
-            // 解析は可能だが読みの取得はブラウザ依存のため、ここでは「読み込み中」を回避するための安全な表示を維持
-        }
         return "";
     }
 
@@ -83,12 +80,11 @@
 
     function updateMain(kanji, reading) {
         target.style.display = 'flex';
-        // 読みが取れなかった場合でも、APIの結果を待つ間は「?」などを出さずに入力値を表示
-        if (!reading || kanji === reading) {
-            hugeText.innerText = kanji;
-        } else {
-            // ローマ字で返ってきた場合は、簡易的にひらがなっぽく見えるようにする（暫定対応）
+        // 読みが取れたらルビ付き、取れなければそのまま
+        if (reading && reading !== kanji) {
             hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
+        } else {
+            hugeText.innerText = kanji;
         }
         adjustSize();
     }
@@ -109,26 +105,28 @@
         clearTimeout(timer);
         if(!val) { target.style.display = 'none'; return; }
 
-        // 入力した瞬間、とりあえずルビなしで大きく表示（真っ白を回避）
+        // 入力の瞬間、まずルビなしで大きく出す
         updateMain(val, "");
 
         timer = setTimeout(async () => {
-            const reading = await getReading(val);
             const isInputKanji = /[一-龠]/.test(val);
-            
+            let reading = "";
             let mainWord = val;
             let kanjiList = [];
 
-            if (!isInputKanji) {
+            if (isInputKanji) {
+                // 漢字が入力された場合
+                reading = await getReading(val);
+                updateMain(val, reading);
+                kanjiList = await getKanjis(reading);
+            } else {
+                // ひらがなが入力された場合
                 kanjiList = await getKanjis(val);
                 mainWord = kanjiList[0] || val;
-                updateMain(mainWord, val);
-            } else {
-                kanjiList = await getKanjis(reading);
-                updateMain(val, reading);
+                reading = val;
+                updateMain(mainWord, reading);
             }
-            
-            renderSide(kanjiList, mainWord, isInputKanji ? reading : val);
+            renderSide(kanjiList, mainWord, reading);
         }, 300);
     });
 
