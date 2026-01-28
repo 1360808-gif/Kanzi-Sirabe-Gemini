@@ -2,75 +2,31 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ連動修正版）</title>
+    <title>かんじ・でか辞書（全常用漢字対応版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
             --main-bg: #f5f7f9;
             --accent-orange: #e67e22;
         }
-
-        body {
-            font-family: var(--primary-font);
-            background-color: var(--main-bg);
-            margin: 0; display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden;
-        }
-
-        header {
-            background: white; padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            z-index: 100; display: flex; justify-content: center;
-        }
-
-        #input-text {
-            width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; 
-            border: 3px solid #e1e8ed; border-radius: 50px; 
-            outline: none; font-family: var(--primary-font);
-        }
-
+        body { font-family: var(--primary-font); background-color: var(--main-bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: white; padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 100; display: flex; justify-content: center; }
+        #input-text { width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; border: 3px solid #e1e8ed; border-radius: 50px; outline: none; }
         .app-layout { display: flex; flex: 1; overflow: hidden; }
-
-        .main-column {
-            flex: 3; padding: 20px; display: flex;
-            flex-direction: column; align-items: center;
-            justify-content: center; overflow: hidden;
-        }
-
-        .focus-card {
-            background: white; width: 95%; height: 85%;
-            padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center;
-        }
-
-        .huge-text-wrapper {
-            width: 100%; text-align: center; white-space: nowrap;
-            display: flex; justify-content: center; align-items: center; flex: 1;
-        }
-
-        .huge-text { display: inline-block; color: #1a202c; line-height: 1.1; }
-
-        .side-column {
-            flex: 1; background-color: #ffffff;
-            border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto;
-        }
-
-        .sub-card {
-            background: #f8fafc; padding: 12px; border-radius: 12px;
-            margin-bottom: 12px; cursor: pointer;
-        }
-
+        .main-column { flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        .focus-card { background: white; width: 95%; height: 85%; padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange); box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .huge-text-wrapper { width: 100%; text-align: center; display: flex; justify-content: center; align-items: center; flex: 1; }
+        .huge-text { display: inline-block; color: #1a202c; line-height: 1.2; }
         ruby { ruby-align: center; }
         rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
+        .side-column { flex: 1; background-color: #ffffff; border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto; }
+        .sub-card { background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; border: 2px solid transparent; }
     </style>
 </head>
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="文字をいれると すぐに ルビが かわるよ" autocomplete="off">
+    <input type="text" id="input-text" placeholder="習った漢字をうってみよう" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -94,19 +50,34 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // 読みを取得する関数（漢字を含まないひらがなを抽出）
-    async function fetchReading(text) {
+    // カタカナをひらがなに変換する補助関数
+    function toHira(str) {
+        return str.replace(/[\u30a1-\u30f6]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60));
+    }
+
+    // どんな漢字でも「ひらがな」を絞り出す強化版
+    async function getSafeReading(text) {
         if (!text) return "";
         try {
+            // Google API経由
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            const all = data[0][1];
-            return all.find(s => !/[一-龠]/.test(s)) || all[0];
+            
+            // 漢字を含まない候補を徹底検索
+            const candidates = data[0][1];
+            let reading = candidates.find(s => !/[一-龠]/.test(s));
+
+            // もし見つからず、カタカナを含む候補があればひらがなに直す
+            if (!reading) {
+                const kanaMatch = candidates.find(s => /[\u3040-\u309f\u30a0-\u30ff]/.test(s));
+                if (kanaMatch) reading = toHira(kanaMatch);
+            }
+
+            return reading || "";
         } catch (e) { return ""; }
     }
 
-    // 漢字候補を取得する関数
-    async function fetchKanjiList(hira) {
+    async function getKanjis(hira) {
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
             const data = await res.json();
@@ -114,11 +85,11 @@
         } catch (e) { return []; }
     }
 
-    function updateView(kanji, reading) {
+    function updateMain(kanji, reading) {
         target.style.display = 'flex';
-        // 読みと本体が同じならルビをつけない
+        // 読みが取得できなかった場合は、本体をそのまま出しルビ部分を空にする
         if (!reading || kanji === reading) {
-            hugeText.innerHTML = kanji;
+            hugeText.innerText = kanji;
         } else {
             hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
         }
@@ -139,35 +110,27 @@
     input.addEventListener('input', () => {
         const val = input.value.trim();
         clearTimeout(timer);
+        if(!val) { target.style.display = 'none'; return; }
 
-        if(!val) {
-            target.style.display = 'none';
-            document.getElementById('suggestion-list').innerHTML = '';
-            return;
-        }
-
-        // 入力が変わった瞬間に「前のルビ」を消す（ここが重要！）
-        hugeText.innerHTML = val; 
+        // 入力した瞬間に前のルビを捨て、今の文字を大きく表示（待機中の空白を回避）
+        updateMain(val, "");
 
         timer = setTimeout(async () => {
-            // STEP 1: 「心」などの読みを新しく取得
-            const currentReading = await fetchReading(val);
-            
-            // STEP 2: ひらがな入力なら漢字候補を探す
+            const reading = await getSafeReading(val);
             const isInputKanji = /[一-龠]/.test(val);
-            let mainKanji = val;
-            let kanjiCandidates = [];
+            
+            let mainWord = val;
+            let kanjiList = [];
 
             if (!isInputKanji) {
-                kanjiCandidates = await fetchKanjiList(val);
-                mainKanji = kanjiCandidates[0] || val;
+                kanjiList = await getKanjis(val);
+                mainWord = kanjiList[0] || val;
+                updateMain(mainWord, val);
             } else {
-                kanjiCandidates = await fetchKanjiList(currentReading);
+                kanjiList = await getKanjis(reading);
+                updateMain(val, reading);
             }
-
-            // STEP 3: 新しい漢字と新しい読みで上書き
-            updateView(mainKanji, currentReading);
-            renderSide(kanjiCandidates, mainKanji, currentReading);
+            renderSide(kanjiList, mainWord, isInputKanji ? reading : val);
         }, 400);
     });
 
@@ -181,13 +144,12 @@
             filtered.forEach(k => {
                 const card = document.createElement('div');
                 card.className = 'sub-card';
-                card.onclick = () => { input.value = k; updateView(k, reading); };
+                card.onclick = () => { input.value = k; updateMain(k, reading); };
                 card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
                 side.appendChild(card);
             });
         } else { title.style.display = 'none'; }
     }
-
     window.addEventListener('resize', adjustSize);
 </script>
 </body>
