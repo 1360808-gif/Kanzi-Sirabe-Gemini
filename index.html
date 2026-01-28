@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ルビ絶対表示版）</title>
+    <title>かんじ・でか辞書（ルビ連動修正版）</title>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
@@ -14,11 +14,8 @@
         body {
             font-family: var(--primary-font);
             background-color: var(--main-bg);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            margin: 0; display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
         }
 
         header {
@@ -54,9 +51,7 @@
             display: flex; justify-content: center; align-items: center; flex: 1;
         }
 
-        .huge-text {
-            display: inline-block; color: #1a202c; line-height: 1.1;
-        }
+        .huge-text { display: inline-block; color: #1a202c; line-height: 1.1; }
 
         .side-column {
             flex: 1; background-color: #ffffff;
@@ -65,7 +60,7 @@
 
         .sub-card {
             background: #f8fafc; padding: 12px; border-radius: 12px;
-            margin-bottom: 12px; cursor: pointer; border: 2px solid transparent;
+            margin-bottom: 12px; cursor: pointer;
         }
 
         ruby { ruby-align: center; }
@@ -75,7 +70,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」とうってみてください" autocomplete="off">
+    <input type="text" id="input-text" placeholder="文字をいれると すぐに ルビが かわるよ" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -86,7 +81,6 @@
             </div>
         </div>
     </main>
-
     <aside class="side-column">
         <div id="side-title" style="font-weight:bold; color:#718096; margin-bottom:15px; font-size:14px; display:none;">💡 ほかの かんじ</div>
         <div id="suggestion-list"></div>
@@ -100,26 +94,19 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // --- 【超重要】どんな場合でも「ひらがな」を絞り出す関数 ---
-    async function getReading(text) {
+    // 読みを取得する関数（漢字を含まないひらがなを抽出）
+    async function fetchReading(text) {
         if (!text) return "";
         try {
-            // 1. Google APIに「ひらがなにして」と頼む
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            
-            // 2. 候補の中から「漢字が一文字も入っていない」ものを探す
-            const allCandidates = data[0][1];
-            const pureHira = allCandidates.find(s => !/[一-龠]/.test(s));
-            
-            if (pureHira) return pureHira;
-        } catch (e) {}
-
-        // 3. APIがダメな場合の最終手段：ひらがな・カタカナ以外の文字をAPIに頼らず処理（簡易的）
-        return ""; 
+            const all = data[0][1];
+            return all.find(s => !/[一-龠]/.test(s)) || all[0];
+        } catch (e) { return ""; }
     }
 
-    async function getCandidates(hira) {
+    // 漢字候補を取得する関数
+    async function fetchKanjiList(hira) {
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
             const data = await res.json();
@@ -129,36 +116,22 @@
 
     function updateView(kanji, reading) {
         target.style.display = 'flex';
-        // ルビが空でないことを確認。APIが空を返してきた時のための安全策
-        if (!reading || reading === kanji) {
-            // 読みが取れなかった場合、Google翻訳の仕組みを借りて「読み」を推測させる
-            hugeText.innerHTML = `<ruby>${kanji}<rt id="retry-rt">読み込み中...</rt></ruby>`;
-            retryReading(kanji);
+        // 読みと本体が同じならルビをつけない
+        if (!reading || kanji === reading) {
+            hugeText.innerHTML = kanji;
         } else {
             hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
         }
-        adjustFontSize();
+        adjustSize();
     }
 
-    // 読みの再取得（ルビが空だった場合のバックアップ処理）
-    async function retryReading(kanji) {
-        try {
-            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(kanji)}`);
-            const data = await res.json();
-            // ローマ字で返ってくることが多いので、簡易的にひらがなとして処理（ブラウザの解析機能へ）
-            const reading = data[1] ? data[1][0][1] : ""; // Googleの翻字データ
-            const rt = document.getElementById('retry-rt');
-            if (rt) rt.innerText = "かんじ"; // ここは「漢字」の時は「かんじ」と固定で出るようにテスト用
-        } catch (e) {}
-    }
-
-    function adjustFontSize() {
+    function adjustSize() {
         const maxWidth = wrapper.offsetWidth * 0.85;
         const maxHeight = wrapper.offsetHeight * 0.75;
-        let fontSize = 180;
+        let fontSize = 200;
         hugeText.style.fontSize = fontSize + "px";
         while ((hugeText.offsetWidth > maxWidth || hugeText.offsetHeight > maxHeight) && fontSize > 20) {
-            fontSize -= 4;
+            fontSize -= 5;
             hugeText.style.fontSize = fontSize + "px";
         }
     }
@@ -166,38 +139,35 @@
     input.addEventListener('input', () => {
         const val = input.value.trim();
         clearTimeout(timer);
+
         if(!val) {
             target.style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
             return;
         }
 
-        timer = setTimeout(async () => {
-            // 特例：入力が「漢字」そのものだった場合、APIを待たずに「かんじ」と出す（辞書対応）
-            if(val === "漢字") {
-                updateView("漢字", "かんじ");
-                const list = await getCandidates("かんじ");
-                renderSide(list, "漢字", "かんじ");
-                return;
-            }
+        // 入力が変わった瞬間に「前のルビ」を消す（ここが重要！）
+        hugeText.innerHTML = val; 
 
-            const reading = await getReading(val);
-            const isInputKanji = /[一-龠]/.test(val);
+        timer = setTimeout(async () => {
+            // STEP 1: 「心」などの読みを新しく取得
+            const currentReading = await fetchReading(val);
             
+            // STEP 2: ひらがな入力なら漢字候補を探す
+            const isInputKanji = /[一-龠]/.test(val);
             let mainKanji = val;
-            let finalReading = reading;
+            let kanjiCandidates = [];
 
             if (!isInputKanji) {
-                const list = await getCandidates(val);
-                mainKanji = list[0] || val;
-                finalReading = val;
-                renderSide(list, mainKanji, finalReading);
+                kanjiCandidates = await fetchKanjiList(val);
+                mainKanji = kanjiCandidates[0] || val;
             } else {
-                const list = await getCandidates(reading);
-                renderSide(list, mainKanji, finalReading);
+                kanjiCandidates = await fetchKanjiList(currentReading);
             }
 
-            updateView(mainKanji, finalReading);
+            // STEP 3: 新しい漢字と新しい読みで上書き
+            updateView(mainKanji, currentReading);
+            renderSide(kanjiCandidates, mainKanji, currentReading);
         }, 400);
     });
 
@@ -218,7 +188,7 @@
         } else { title.style.display = 'none'; }
     }
 
-    window.addEventListener('resize', adjustFontSize);
+    window.addEventListener('resize', adjustSize);
 </script>
 </body>
 </html>
