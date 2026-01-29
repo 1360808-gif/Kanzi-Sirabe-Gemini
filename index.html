@@ -3,138 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ふりがな＆漢字マジック！</title>
+    <title>かんじ・でか辞書（翻訳エンジン搭載版）</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
-        body {
-            font-family: "UD Digi Kyokasho N-R", sans-serif;
-            background-color: #fcfcfc; margin: 0; display: flex; flex-direction: column; height: 100vh; color: #333;
+        :root {
+            --primary-font: "UD Digi Kyokasho N-R", "UDデジタル教科書体 N-R", sans-serif;
+            --main-bg: #f5f7f9;
+            --accent-orange: #e67e22;
         }
-        header { flex: 0 0 auto; display: flex; padding: 15px 20px; gap: 20px; background-color: #eef9ff; border-bottom: 2px solid #a6dcef; }
-        .info-pane { flex: 1; }
-        h1 { color: #1a73e8; margin: 0 0 5px 0; font-size: 1.2rem; }
-        .input-pane { flex: 2; }
-        textarea { width: 100%; height: 80px; border: 2px solid #a6dcef; border-radius: 12px; padding: 10px; font-size: 16px; resize: none; outline: none; }
-        
-        main { flex: 1; padding: 20px; overflow-y: auto; background: white; }
-        #output { font-size: 24px; line-height: 2.5; }
-        
-        /* 候補リストのスタイル */
-        .suggestion-box {
-            display: inline-block;
-            background: #fff3cd;
-            border: 1px solid #ffeeba;
-            border-radius: 5px;
-            margin: 5px;
-            padding: 5px 10px;
-            font-size: 14px;
-            line-height: 1.2;
-            vertical-align: middle;
-        }
-        .suggestion-item {
-            color: #856404;
-            cursor: pointer;
-            text-decoration: underline;
-            margin-right: 8px;
-        }
-        .suggestion-item:hover { color: #e67e22; }
 
-        rt { color: #d9534f; font-size: 0.5em; font-weight: bold; }
-        .btn { background: #ff9f43; color: white; border: none; padding: 10px 20px; border-radius: 50px; cursor: pointer; font-weight: bold; }
+        body {
+            font-family: var(--primary-font);
+            background-color: var(--main-bg);
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        header {
+            background: white; padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 100; display: flex; justify-content: center;
+        }
+
+        #input-text {
+            width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; 
+            border: 3px solid #e1e8ed; border-radius: 50px; outline: none;
+        }
+
+        .app-layout { display: flex; flex: 1; overflow: hidden; }
+
+        .main-column {
+            flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .focus-card {
+            background: white; width: 95%; height: 85%;
+            padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .huge-text { display: inline-block; color: #1a202c; line-height: 1.1; text-align: center; }
+
+        .side-column {
+            flex: 1; background-color: #ffffff; border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto;
+        }
+
+        .sub-card {
+            background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer;
+        }
+
+        rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="info-pane">
-        <h1>✨ ふりがな＆漢字マジック</h1>
-        <div style="font-size: 0.8rem;">ひらがな→漢字候補 / 漢字→フリガナ＆同じ音の漢字</div>
-    </div>
-    <div class="input-pane">
-        <textarea id="input" placeholder="ここに文字をうってね！"></textarea>
-    </div>
+    <input type="text" id="input-text" placeholder="「漢字」や「学校」とうってみてね" autocomplete="off">
 </header>
 
-<main>
-    <div id="output"></div>
-</main>
+<div class="app-layout">
+    <main class="main-column">
+        <div id="main-target" class="focus-card" style="display:none;">
+            <div id="huge-text" class="huge-text"></div>
+        </div>
+    </main>
+
+    <aside class="side-column">
+        <div id="side-title" style="font-weight:bold; color:#718096; margin-bottom:15px; font-size:14px; display:none;">💡 ほかの かんじ</div>
+        <div id="suggestion-list"></div>
+    </aside>
+</div>
 
 <script>
-    const input = document.getElementById('input');
-    const output = document.getElementById('output');
-    let timer;
+    const input = document.getElementById('input-text');
+    const hugeText = document.getElementById('huge-text');
+    const target = document.getElementById('main-target');
+    let timer = null;
 
-    input.addEventListener('input', () => {
-        clearTimeout(timer);
-        timer = setTimeout(processMagic, 800);
-    });
-
-    async function processMagic() {
-        const text = input.value.trim();
-        if (!text) { output.innerHTML = ""; return; }
-
-        const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
-        const segments = Array.from(segmenter.segment(text));
-        
-        output.innerHTML = "🪄 まほうを かけています...";
-        let htmlResult = "";
-
-        for (const seg of segments) {
-            const word = seg.segment;
-
-            // ① 漢字が含まれる場合：フリガナ＋同音異義語
-            if (/[\u4E00-\u9FFF]/.test(word)) {
-                const reading = await getReading(word);
-                const suggestions = await getKanjiCandidates(reading);
-                
-                htmlResult += `<ruby>${word}<rt>${reading}</rt></ruby>`;
-                htmlResult += `<span class="suggestion-box">🔍同じ音: ${suggestions}</span> `;
-            } 
-            // ② ひらがな・カタカナのみの場合：漢字候補を出す
-            else if (/^[ぁ-んァ-ヶー]+$/.test(word) && word.length > 1) {
-                const candidates = await getKanjiCandidates(word);
-                htmlResult += `<span>${word}</span>`;
-                htmlResult += `<span class="suggestion-box">📝漢字なら: ${candidates}</span> `;
-            } 
-            else {
-                htmlResult += word;
-            }
-        }
-        output.innerHTML = htmlResult;
-    }
-
-    // Google翻訳APIを利用した読み取り（前回のコードの改良版）
+    // --- ご提示いただいたGoogle翻訳エンジンを利用した「読み」取得 ---
     async function getReading(word) {
+        if (!word) return "";
         try {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(word)}`;
             const response = await fetch(url);
             const data = await response.json();
             let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
-            let fixed = romaji.toLowerCase().replace(/[āīūēō]/g, m => ({'ā':'aa','ī':'ii','ū':'uu','ē':'ee','ō':'ou'}[m]));
-            return wanakana.toHiragana(fixed.replace(/[^a-z]/g, ''));
-        } catch { return "???"; }
+            
+            // ローマ字を整形（長音記号などを変換）
+            let fixed = romaji.toLowerCase().replace(/[~~\-ー\s]/g, '');
+            const romajiMap = { 'ā': 'aa', 'ī': 'ii', 'ū': 'uu', 'ē': 'ei', 'ō': 'ou' };
+            Object.keys(romajiMap).forEach(key => { fixed = fixed.split(key).join(romajiMap[key]); });
+            
+            // wanakanaでひらがなに変換
+            return wanakana.toHiragana(fixed);
+        } catch (e) {
+            return "";
+        }
     }
 
-    // Google入力ツールAPIを利用した漢字候補の取得
-    async function getKanjiCandidates(kana) {
+    // 漢字候補のリスト取得（ここは従来のAPIを使用）
+    async function getKanjiOptions(hira) {
         try {
-            const url = `https://www.google.com/inputtools/request?ime=transliteration-en-ja&num=5&cp=0&cs=0&ie=utf-8&oe=utf-8&app=jsapi&text=${encodeURIComponent(kana)}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data[0] === "SUCCESS") {
-                const candidates = data[1][0][1];
-                // 変換候補をリンク形式にする（クリックで入力欄へ）
-                return candidates.slice(0, 5).map(c => `<span class="suggestion-item" onclick="replaceInput('${c}')">${c}</span>`).join('');
-            }
-            return "なし";
-        } catch { return "検索失敗"; }
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
+            const data = await res.json();
+            return data[0][1].filter(c => /[一-龠]/.test(c));
+        } catch (e) { return []; }
     }
 
-    // 候補をクリックしたら入力欄に追加（おまけ機能）
-    window.replaceInput = (val) => {
-        input.value += val;
-        processMagic();
-    };
+    function updateDisplay(kanji, reading) {
+        target.style.display = 'flex';
+        // 漢字に変換できない文字（ひらがな等）ならルビなし、漢字ならルビあり
+        const hasKanji = /[一-龠]/.test(kanji);
+        hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
+        adjustFontSize();
+    }
+
+    function adjustFontSize() {
+        let fontSize = 180;
+        hugeText.style.fontSize = fontSize + "px";
+        while ((hugeText.offsetWidth > window.innerWidth * 0.6 || hugeText.offsetHeight > window.innerHeight * 0.5) && fontSize > 20) {
+            fontSize -= 5;
+            hugeText.style.fontSize = fontSize + "px";
+        }
+    }
+
+    input.addEventListener('input', () => {
+        const val = input.value.trim();
+        clearTimeout(timer);
+        if(!val) {
+            target.style.display = 'none';
+            document.getElementById('suggestion-list').innerHTML = '';
+            return;
+        }
+
+        timer = setTimeout(async () => {
+            // 1. まず読み（ひらがな）を確定させる（Google翻訳エンジン）
+            const hira = await getReading(val);
+            
+            // 2. その読みから漢字候補を出す
+            const kanjiList = await getKanjiOptions(hira || val);
+            
+            // 3. 表示決定
+            const isInputKanji = /[一-龠]/.test(val);
+            const mainKanji = isInputKanji ? val : (kanjiList[0] || val);
+            const mainReading = hira || (isInputKanji ? "" : val);
+
+            updateDisplay(mainKanji, mainReading);
+
+            // サイドバー更新
+            const side = document.getElementById('suggestion-list');
+            const title = document.getElementById('side-title');
+            side.innerHTML = '';
+            const filtered = kanjiList.filter(k => k !== mainKanji).slice(0, 10);
+            
+            if (filtered.length > 0) {
+                title.style.display = 'block';
+                filtered.forEach(k => {
+                    const card = document.createElement('div');
+                    card.className = 'sub-card';
+                    card.onclick = () => { input.value = k; updateDisplay(k, mainReading); };
+                    card.innerHTML = `<ruby>${k}<rt>${mainReading}</rt></ruby>`;
+                    side.appendChild(card);
+                });
+            } else { title.style.display = 'none'; }
+        }, 500);
+    });
 </script>
 </body>
 </html>
