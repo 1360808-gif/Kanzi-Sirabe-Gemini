@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネしてポン！ | 学年がわかる漢字ツール</title>
+    <title>マネしてポン！ | 学年まるわかり版</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         :root {
@@ -22,19 +22,16 @@
             color: var(--text-color);
         }
 
+        /* ヘッダー */
         header {
             background: white; padding: 10px 20px; 
             box-shadow: 0 4px 0 rgba(0,0,0,0.05);
             z-index: 100; display: flex; align-items: center; justify-content: space-between; gap: 10px;
         }
-
         .logo { font-size: 28px; font-weight: bold; color: var(--accent-orange); line-height: 1; }
         .logo span { font-size: 12px; color: #888; margin-top: 5px; display: block; }
 
-        .input-container {
-            flex-grow: 1; max-width: 600px; position: relative;
-        }
-
+        .input-container { flex-grow: 1; max-width: 600px; position: relative; }
         #input-text {
             width: 100%; padding: 12px 60px 12px 25px; font-size: 20px; 
             border: 3px solid #f0f0f0; border-radius: 50px; outline: none;
@@ -44,33 +41,30 @@
 
         #mic-btn {
             position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            background: none; border: none; cursor: pointer;
-            width: 40px; height: 40px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            transition: 0.2s; color: #aaa;
+            background: none; border: none; cursor: pointer; color: #aaa;
         }
-        #mic-btn.listening { color: white; background-color: var(--accent-red); animation: pulse 1.5s infinite; }
-        
+        #mic-btn.listening { color: var(--accent-red); animation: pulse 1.5s infinite; }
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 75, 75, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+            0% { transform: translateY(-50%) scale(1); opacity: 1; }
+            50% { transform: translateY(-50%) scale(1.2); opacity: 0.7; }
+            100% { transform: translateY(-50%) scale(1); opacity: 1; }
         }
 
+        /* メインレイアウト */
         .app-layout { display: flex; flex: 1; overflow: hidden; }
 
         .main-column {
-            flex: 3; padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
         }
 
+        /* メインの漢字カード */
         .focus-card {
-            background: var(--card-bg); width: 100%; height: 80%; 
+            background: var(--card-bg); width: 100%; height: 65%; 
             border-radius: 40px; border: 8px solid var(--accent-orange);
             display: flex; align-items: center; justify-content: center; 
             position: relative; box-shadow: 0 10px 0 rgba(0,0,0,0.05);
-            overflow: hidden;
+            margin-bottom: 20px;
         }
-
         .focus-card::before, .focus-card::after {
             content: ""; position: absolute; background-color: #f0f0f0; z-index: 1;
         }
@@ -79,25 +73,44 @@
 
         .huge-text { position: relative; z-index: 10; color: #000; text-align: center; line-height: 1.1; }
 
-        /* 学年バッジのスタイル */
-        #grade-badge {
-            margin-top: 20px; padding: 10px 25px; border-radius: 50px;
-            font-weight: bold; font-size: 18px; color: white; 
-            box-shadow: 0 4px 0 rgba(0,0,0,0.1); display: none;
+        /* 学年判定エリア（1文字ずつ） */
+        #grade-breakdown {
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;
+            min-height: 80px;
         }
 
+        .grade-tag {
+            background: white; padding: 8px 15px; border-radius: 12px;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.1); border: 2px solid #eee;
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 60px; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .grade-tag .char { font-size: 24px; font-weight: bold; margin-bottom: 4px; }
+        .grade-tag .level { font-size: 12px; font-weight: bold; color: white; padding: 2px 8px; border-radius: 10px; }
+
+        /* 学年ごとの色 */
+        .g-1 { background-color: #e91e63; } /* 1年: ピンク */
+        .g-2 { background-color: #ff9800; } /* 2年: オレンジ */
+        .g-3 { background-color: #ffc107; color: #333 !important; } /* 3年: 黄色 */
+        .g-4 { background-color: #4caf50; } /* 4年: 緑 */
+        .g-5 { background-color: #2196f3; } /* 5年: 青 */
+        .g-6 { background-color: #9c27b0; } /* 6年: 紫 */
+        .g-jh { background-color: #34495e; } /* 中学: 紺 */
+        .g-other { background-color: #9e9e9e; } /* その他: グレー */
+
+        /* サイドバー */
         .side-column {
             flex: 1; background-color: white; border-left: 4px solid #f0f0f0; 
             padding: 20px; overflow-y: auto;
         }
-
         .sub-card {
             background: #fff; padding: 15px; border-radius: 15px; margin-bottom: 15px; 
             cursor: pointer; border: 2px solid #f0f0f0; transition: 0.2s;
         }
         .sub-card:hover { border-color: var(--accent-orange); transform: translateY(-2px); }
-
-        rt { font-size: 0.3em; color: var(--accent-orange); font-weight: bold; padding-bottom: 10px; }
+        rt { font-size: 0.3em; color: var(--accent-orange); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -106,11 +119,7 @@
     <div class="logo">マネしてポン！<span>かんじ おてほん ツール</span></div>
     <div class="input-container">
         <input type="text" id="input-text" placeholder="ここに うちこんでね" autocomplete="off">
-        <button id="mic-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-            </svg>
-        </button>
+        <button id="mic-btn">🎙️</button>
     </div>
     <div style="width: 100px;"></div>
 </header>
@@ -120,68 +129,46 @@
         <div id="main-target" class="focus-card" style="display:none;">
             <div id="huge-text" class="huge-text"></div>
         </div>
-        <div id="grade-badge"></div>
+
+        <div id="grade-breakdown"></div>
     </main>
 
     <aside class="side-column">
-        <div id="side-title" style="font-weight:bold; color:#888; margin-bottom:15px; display:none;">💡 ほかの かんじ</div>
+        <div id="side-title" style="display:none; font-weight:bold; color:#888; margin-bottom:10px;">ほかの かんじ</div>
         <div id="suggestion-list"></div>
     </aside>
 </div>
 
 <script>
-    // --- 漢字データ（簡易版：代表的なものを判定） ---
-    const KANJI_DATA = {
+    // --- 正確な学習漢字データ (文科省 学年別漢字配当表) ---
+    const GRADE_DATA = {
         1: "一右雨円王音下火花貝学気休玉金空月犬見口校左三山子四糸字耳七車手出女小上森人水正生青夕石赤千川先早草足村大中田二日入年白八百木本名目立力林六",
         2: "引羽雲園遠何科夏家歌画回会海絵外角楽活間丸岩顔汽記帰弓牛魚京強教近兄形計元言原戸古午後語工公広交光考行高黄合谷国黒今才細作算止市矢姉思紙寺自時室社弱首秋週春書少場色食心新親図数西声星晴切雪船線前組走多太体台地池知茶昼長鳥朝直通弟店点電刀冬当東答頭同道読内肉馬売買麦半番父風分聞米歩母方北毎妹万明鳴毛門野用曜羊来藍里理立話",
-        // (データ量削減のため、3〜6年、中学生はロジック内で判定)
+        3: "悪安暗医委意育員院飲運泳駅央横屋温化荷界開階寒感漢館岸起期客究急級宮球去橋業曲局銀区苦具君係軽血決研県庫湖向幸港号根祭皿仕死使始指歯詩次事持式実写者主守取酒受州拾終習集住重宿所暑助昭消商章勝乗植申身神真深進世整昔全相送想息速族他打対待代第題炭短談着注柱丁帳調追定庭笛鉄転都度投豆島湯登等動童農波配倍箱畑発反坂板皮悲美鼻筆氷表秒病品負部服福物平返勉放味命面問役薬由油有遊予羊洋葉陽様落流旅両緑礼列練路和",
+        4: "愛案以衣位囲胃印英栄塩億加果貨課芽改械害街各覚完官管関観願希季紀喜旗器機議求泣救給挙漁共協鏡競極訓軍郡径型景芸欠結建健験固功好候航康告差菜最材昨札刷殺察参産散残氏司試児治滋辞鹿失借種周祝順初松笑唱焼象照賞臣信成省清静席積折節説浅戦選然争倉巣束側続卒孫帯隊達単置仲貯兆腸低底停的典伝徒努灯堂働特得毒熱念敗梅博飯飛費必票標不夫付府副粉兵別辺変便包法望牧末満未脈民無約勇要養浴利陸良料量輪類令冷例歴連老労録",
+        5: "圧移因永営衛易益液演応往桜恩可仮価河過快賀解格確額刊幹慣眼基寄規技義逆久旧居許境均禁句群経潔件券険検限現減故個護効厚耕鉱構興講混査再災妻採際在財罪雑酸賛支志枝師資飼示似識質舎謝授修述術準序招承証条状常情織職制性政勢精製税責績接設舌絶銭祖素総造像増則測属率損退貸態団断築張提程適敵統導銅徳独任燃能破犯判版比肥非備俵評貧布婦富武復複仏編弁保墓報豊防貿暴務夢迷綿輸余預容略留領",
+        6: "胃異遺域宇映延沿我灰拡革閣割株干巻看簡危机揮貴疑吸供胸郷勤筋系敬警劇激穴絹権憲源厳己呼誤后孝皇紅降鋼刻穀骨困砂座済裁策冊蚕至私姿視詞誌磁射捨尺若樹収宗就衆従縦縮熟純処署諸除将傷障城蒸針仁垂推寸盛聖誠宣専泉洗染善奏窓創装層操蔵臓存尊宅担探誕段暖値宙忠著庁頂潮賃痛展討党糖届難乳認納脳派拝背肺俳班晩否批秘腹奮並陛閉片補暮宝訪亡忘棒枚幕密盟模訳郵優幼欲翌乱卵覧裏律臨朗論"
     };
 
-    // 学年を判定する関数
-    function checkGrade(text) {
-        const kanjis = text.match(/[一-龠]/g);
-        if (!kanjis) return null;
+    // 学年を取得するロジック
+    function getKanjiGrade(char) {
+        if (!/[一-龠]/.test(char)) return null; // 漢字以外はスキップ
 
-        let maxGrade = 0;
-        let hasJuniorHigh = false;
-        let hasOutside = false;
-
-        // 常用漢字リスト（簡易的にUnicode範囲で判定しつつ、教育漢字を優先）
-        for (let char of kanjis) {
-            let found = false;
-            if (KANJI_DATA[1].includes(char)) { maxGrade = Math.max(maxGrade, 1); found = true; }
-            else if (KANJI_DATA[2].includes(char)) { maxGrade = Math.max(maxGrade, 2); found = true; }
-            else {
-                // 3-6年、中学の判定（本来は全リストが必要だが、ここではAPI等の代わりとして一般・中学を判定）
-                // 実際の実装ではここに3-6年のリストを入れると正確になります
-                // ここではデモ用に3-6年を「小学校でならう」、それ以外を「中学・それ以上」とします
-                maxGrade = Math.max(maxGrade, 3); // 暫定
+        for (let g = 1; g <= 6; g++) {
+            if (GRADE_DATA[g].includes(char)) {
+                return { grade: g, label: g + "年", className: "g-" + g };
             }
         }
-
-        if (maxGrade === 1) return { label: "小学校1年生でならうよ", color: "#4caf50" };
-        if (maxGrade === 2) return { label: "小学校2年生でならうよ", color: "#2196f3" };
-        if (maxGrade >= 3) return { label: "小学校3年生以上でならうよ", color: "#ff9800" };
-        return { label: "むずかしい かんじだね！", color: "#9e9e9e" };
+        // 1-6年になくて、漢字なら「中学以上」とみなす
+        return { grade: 7, label: "中学", className: "g-jh" };
     }
 
     const input = document.getElementById('input-text');
     const hugeText = document.getElementById('huge-text');
     const target = document.getElementById('main-target');
-    const gradeBadge = document.getElementById('grade-badge');
-    let timer = null;
+    const gradeRow = document.getElementById('grade-breakdown');
 
-    // 音声入力設定
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ja-JP';
-        recognition.onstart = () => { document.getElementById('mic-btn').classList.add('listening'); };
-        recognition.onend = () => { document.getElementById('mic-btn').classList.remove('listening'); };
-        recognition.onresult = (event) => { input.value = event.results[0][0].transcript; input.dispatchEvent(new Event('input')); };
-        document.getElementById('mic-btn').onclick = () => { recognition.start(); };
-    }
-
+    // 共通関数
     async function getReading(text) {
         try {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`;
@@ -212,22 +199,31 @@
         } catch (e) { return []; }
     }
 
+    // 表示更新
     function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
         const hasKanji = /[一-龠]/.test(kanji);
         hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
-        
-        // 学年バッジの更新
-        const gradeInfo = checkGrade(kanji);
-        if (gradeInfo) {
-            gradeBadge.innerText = gradeInfo.label;
-            gradeBadge.style.backgroundColor = gradeInfo.color;
-            gradeBadge.style.display = 'block';
-        } else {
-            gradeBadge.style.display = 'none';
-        }
-        
         adjustFontSize();
+        
+        // ★学年ブレイクダウンの作成
+        gradeRow.innerHTML = '';
+        if (hasKanji) {
+            // 文字列を1文字ずつ処理
+            const chars = kanji.split('');
+            chars.forEach(char => {
+                const info = getKanjiGrade(char);
+                if (info) {
+                    const tag = document.createElement('div');
+                    tag.className = 'grade-tag';
+                    tag.innerHTML = `
+                        <span class="char">${char}</span>
+                        <span class="level ${info.className}">${info.label}</span>
+                    `;
+                    gradeRow.appendChild(tag);
+                }
+            });
+        }
     }
 
     function adjustFontSize() {
@@ -240,12 +236,14 @@
         }
     }
 
+    // イベントリスナー
+    let timer = null;
     input.addEventListener('input', () => {
         const val = input.value.trim();
         clearTimeout(timer);
         if(!val) {
             target.style.display = 'none';
-            gradeBadge.style.display = 'none';
+            gradeRow.innerHTML = '';
             document.getElementById('suggestion-list').innerHTML = '';
             document.getElementById('side-title').style.display = 'none';
             return;
@@ -285,11 +283,22 @@
                         }
                     });
                 });
-            }
+            } else { document.getElementById('side-title').style.display = 'none'; }
         }, 500);
     });
 
     window.addEventListener('resize', adjustFontSize);
+    
+    // 音声入力
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.onstart = () => { document.getElementById('mic-btn').classList.add('listening'); };
+        recognition.onend = () => { document.getElementById('mic-btn').classList.remove('listening'); };
+        recognition.onresult = (event) => { input.value = event.results[0][0].transcript; input.dispatchEvent(new Event('input')); };
+        document.getElementById('mic-btn').onclick = () => { recognition.start(); };
+    }
 </script>
 </body>
 </html>
