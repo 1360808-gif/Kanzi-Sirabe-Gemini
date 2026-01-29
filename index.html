@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネしてポン！ | メッセージ付き</title>
+    <title>マネしてポン！ | ふりがなマジック連携</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         /* --- 全体デザイン --- */
@@ -29,18 +29,17 @@
             box-shadow: 0 4px 0 rgba(0,0,0,0.05);
             z-index: 100; 
             display: flex; align-items: center; 
-            /* justify-contentは指定せず、marginでレイアウト制御します */
             gap: 20px;
         }
         
         .logo { font-size: 28px; font-weight: bold; color: var(--accent-orange); line-height: 1; flex-shrink: 0; }
         .logo span { font-size: 12px; color: #888; margin-top: 5px; display: block; }
 
-        /* 検索窓エリア：margin-right: auto で右側の要素（メッセージ）を端に押しやる */
+        /* 検索窓：右側の余白を自動で埋めて、後続の要素を右端へ */
         .input-container { 
-            width: 450px; /* 幅を少し固定してコンパクトに */
+            width: 450px; 
             position: relative; display: flex; align-items: center; 
-            margin-right: auto; /* これがポイント！右に余白を全部使う */
+            margin-right: auto; 
         }
 
         #input-text {
@@ -51,18 +50,49 @@
         }
         #input-text:focus { border-color: var(--accent-orange); background: white; }
 
-        /* 先生へのメッセージエリア */
-        .teacher-message {
-            font-size: 11px;
-            color: #666;
-            background-color: #f4f6f8;
-            padding: 8px 15px;
-            border-radius: 12px;
-            border: 2px dashed #dde1e6;
-            line-height: 1.5;
-            flex-shrink: 0; /* 縮まないようにする */
+        /* ヘッダー右側の情報エリア（まとめて横並びにする） */
+        .header-right-group {
             display: flex;
             align-items: center;
+            gap: 12px;
+        }
+
+        /* 先生へのメッセージ */
+        .teacher-message {
+            font-size: 10px;
+            color: #777;
+            background-color: #f4f6f8;
+            padding: 6px 12px;
+            border-radius: 12px;
+            border: 2px dashed #dde1e6;
+            line-height: 1.4;
+            flex-shrink: 0;
+        }
+
+        /* ふりがなマジックへのリンクボタン */
+        .magic-link {
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: bold;
+            color: #5e35b1; /* マジックっぽい紫 */
+            background-color: #ede7f6;
+            padding: 6px 12px;
+            border-radius: 12px;
+            border: 2px solid #b39ddb;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.2s, background-color 0.2s;
+            flex-shrink: 0;
+        }
+        .magic-link:hover {
+            transform: scale(1.05);
+            background-color: #d1c4e9;
+        }
+        .magic-link::before {
+            content: "✨"; /* キラキラアイコン */
+            font-size: 16px;
         }
 
         /* SVGマイクボタン */
@@ -148,10 +178,16 @@
         </button>
     </div>
 
-    <div class="teacher-message">
-        なにか おかしな ところを みつけたら、<br>
-        先生(せんせい)に おしえてね。<br>
-        なおせるなら、なおすよ。
+    <div class="header-right-group">
+        <div class="teacher-message">
+            なにか おかしな ところが あったら、<br>
+            先生に おしえてね。
+        </div>
+
+        <a href="https://1360808-gif.github.io/HUrigana-Gemini-2/" target="_blank" class="magic-link">
+            ながい ぶんしょうの ふりがなは<br>
+            「ふりがなマジック」へ
+        </a>
     </div>
 </header>
 
