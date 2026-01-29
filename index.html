@@ -1,27 +1,140 @@
-async function getReading(word) {
-            try {
-                // 文末の句読点などが混じると精度が落ちるため、漢字と数字のみに絞る
-                const cleanWord = word.trim();
-                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(cleanWord)}`;
-                const response = await fetch(url);
-                const data = await response.json();
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ふりがな＆漢字マジック！</title>
+    <script src="https://unpkg.com/wanakana"></script>
+    <style>
+        body {
+            font-family: "UD Digi Kyokasho N-R", sans-serif;
+            background-color: #fcfcfc; margin: 0; display: flex; flex-direction: column; height: 100vh; color: #333;
+        }
+        header { flex: 0 0 auto; display: flex; padding: 15px 20px; gap: 20px; background-color: #eef9ff; border-bottom: 2px solid #a6dcef; }
+        .info-pane { flex: 1; }
+        h1 { color: #1a73e8; margin: 0 0 5px 0; font-size: 1.2rem; }
+        .input-pane { flex: 2; }
+        textarea { width: 100%; height: 80px; border: 2px solid #a6dcef; border-radius: 12px; padding: 10px; font-size: 16px; resize: none; outline: none; }
+        
+        main { flex: 1; padding: 20px; overflow-y: auto; background: white; }
+        #output { font-size: 24px; line-height: 2.5; }
+        
+        /* 候補リストのスタイル */
+        .suggestion-box {
+            display: inline-block;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            margin: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+            line-height: 1.2;
+            vertical-align: middle;
+        }
+        .suggestion-item {
+            color: #856404;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-right: 8px;
+        }
+        .suggestion-item:hover { color: #e67e22; }
+
+        rt { color: #d9534f; font-size: 0.5em; font-weight: bold; }
+        .btn { background: #ff9f43; color: white; border: none; padding: 10px 20px; border-radius: 50px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="info-pane">
+        <h1>✨ ふりがな＆漢字マジック</h1>
+        <div style="font-size: 0.8rem;">ひらがな→漢字候補 / 漢字→フリガナ＆同じ音の漢字</div>
+    </div>
+    <div class="input-pane">
+        <textarea id="input" placeholder="ここに文字をうってね！"></textarea>
+    </div>
+</header>
+
+<main>
+    <div id="output"></div>
+</main>
+
+<script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    let timer;
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(processMagic, 800);
+    });
+
+    async function processMagic() {
+        const text = input.value.trim();
+        if (!text) { output.innerHTML = ""; return; }
+
+        const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
+        const segments = Array.from(segmenter.segment(text));
+        
+        output.innerHTML = "🪄 まほうを かけています...";
+        let htmlResult = "";
+
+        for (const seg of segments) {
+            const word = seg.segment;
+
+            // ① 漢字が含まれる場合：フリガナ＋同音異義語
+            if (/[\u4E00-\u9FFF]/.test(word)) {
+                const reading = await getReading(word);
+                const suggestions = await getKanjiCandidates(reading);
                 
-                // Google翻訳APIからローマ字を取得
-                let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
-                if (!romaji) return "";
-
-                // 特殊記号や長音の正規化（精度の向上）
-                let fixed = romaji.toLowerCase()
-                    .replace(/[āâ]/g, 'aa')
-                    .replace(/[īî]/g, 'ii')
-                    .replace(/[ūû]/g, 'uu')
-                    .replace(/[ēê]/g, 'ei')
-                    .replace(/[ōô]/g, 'ou')
-                    .replace(/[^\w\s]/g, ''); // 記号を削除
-
-                return wanakana.toHiragana(fixed);
-            } catch (e) {
-                console.error("読みの取得に失敗しました", e);
-                return "";
+                htmlResult += `<ruby>${word}<rt>${reading}</rt></ruby>`;
+                htmlResult += `<span class="suggestion-box">🔍同じ音: ${suggestions}</span> `;
+            } 
+            // ② ひらがな・カタカナのみの場合：漢字候補を出す
+            else if (/^[ぁ-んァ-ヶー]+$/.test(word) && word.length > 1) {
+                const candidates = await getKanjiCandidates(word);
+                htmlResult += `<span>${word}</span>`;
+                htmlResult += `<span class="suggestion-box">📝漢字なら: ${candidates}</span> `;
+            } 
+            else {
+                htmlResult += word;
             }
         }
+        output.innerHTML = htmlResult;
+    }
+
+    // Google翻訳APIを利用した読み取り（前回のコードの改良版）
+    async function getReading(word) {
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(word)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
+            let fixed = romaji.toLowerCase().replace(/[āīūēō]/g, m => ({'ā':'aa','ī':'ii','ū':'uu','ē':'ee','ō':'ou'}[m]));
+            return wanakana.toHiragana(fixed.replace(/[^a-z]/g, ''));
+        } catch { return "???"; }
+    }
+
+    // Google入力ツールAPIを利用した漢字候補の取得
+    async function getKanjiCandidates(kana) {
+        try {
+            const url = `https://www.google.com/inputtools/request?ime=transliteration-en-ja&num=5&cp=0&cs=0&ie=utf-8&oe=utf-8&app=jsapi&text=${encodeURIComponent(kana)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data[0] === "SUCCESS") {
+                const candidates = data[1][0][1];
+                // 変換候補をリンク形式にする（クリックで入力欄へ）
+                return candidates.slice(0, 5).map(c => `<span class="suggestion-item" onclick="replaceInput('${c}')">${c}</span>`).join('');
+            }
+            return "なし";
+        } catch { return "検索失敗"; }
+    }
+
+    // 候補をクリックしたら入力欄に追加（おまけ機能）
+    window.replaceInput = (val) => {
+        input.value += val;
+        processMagic();
+    };
+</script>
+</body>
+</html>
