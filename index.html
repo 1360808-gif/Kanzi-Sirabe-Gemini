@@ -1,152 +1,27 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>かんじ・でか辞書（ルビ確定版）</title>
-    <style>
-        :root {
-            --primary-font: "UD Digi Kyokasho N-R", "UD Digi Kyokasho NK-R", "UDデジタル教科書体 N-R", "Klee One", "Zen Maru Gothic", sans-serif;
-            --main-bg: #f5f7f9;
-            --accent-orange: #e67e22;
-        }
-        body { font-family: var(--primary-font); background-color: var(--main-bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: white; padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: center; }
-        #input-text { width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; border: 3px solid #e1e8ed; border-radius: 50px; outline: none; }
-        .app-layout { display: flex; flex: 1; overflow: hidden; }
-        .main-column { flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-        .focus-card { background: white; width: 95%; height: 85%; padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .huge-text-wrapper { width: 100%; text-align: center; display: flex; justify-content: center; align-items: center; flex: 1; }
-        .huge-text { display: inline-block; color: #1a202c; line-height: 1.2; }
-        ruby { ruby-align: center; }
-        rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
-        .side-column { flex: 1; background-color: #ffffff; border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto; }
-        .sub-card { background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; }
-    </style>
-</head>
-<body>
+async function getReading(word) {
+            try {
+                // 文末の句読点などが混じると精度が落ちるため、漢字と数字のみに絞る
+                const cleanWord = word.trim();
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(cleanWord)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Google翻訳APIからローマ字を取得
+                let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
+                if (!romaji) return "";
 
-<header>
-    <input type="text" id="input-text" placeholder="「給食室」と漢字でうってみてね" autocomplete="off">
-</header>
+                // 特殊記号や長音の正規化（精度の向上）
+                let fixed = romaji.toLowerCase()
+                    .replace(/[āâ]/g, 'aa')
+                    .replace(/[īî]/g, 'ii')
+                    .replace(/[ūû]/g, 'uu')
+                    .replace(/[ēê]/g, 'ei')
+                    .replace(/[ōô]/g, 'ou')
+                    .replace(/[^\w\s]/g, ''); // 記号を削除
 
-<div class="app-layout">
-    <main class="main-column">
-        <div id="main-target" class="focus-card" style="display:none;">
-            <div class="huge-text-wrapper" id="text-wrapper">
-                <div class="huge-text" id="huge-text"></div>
-            </div>
-        </div>
-    </main>
-    <aside class="side-column">
-        <div id="side-title" style="font-weight:bold; color:#718096; margin-bottom:15px; font-size:14px; display:none;">💡 ほかの かんじ</div>
-        <div id="suggestion-list"></div>
-    </aside>
-</div>
-
-<script>
-    const input = document.getElementById('input-text');
-    const hugeText = document.getElementById('huge-text');
-    const wrapper = document.getElementById('text-wrapper');
-    const target = document.getElementById('main-target');
-    let timer = null;
-
-    // --- 漢字を投げると「読み」を返す最強のバックアップ ---
-    async function getReading(text) {
-        if (!text) return "";
-        try {
-            // Google翻訳の読み上げ用翻字API（非常に強力で漢字を読み飛ばさない）
-            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`);
-            const data = await res.json();
-            
-            // APIから読み（ひらがな/ローマ字）を抽出
-            if (data[1] && data[1][0] && data[1][0][1]) {
-                // ここで取得できるのはローマ字の場合が多いので、
-                // さらにひらがな化APIに投げて正確なひらがなを得る
-                const hiraRes = await fetch(`https://www.google.com/transliterate?langpair=ja|ja-Hira&text=${encodeURIComponent(text)}`);
-                const hiraData = await hiraRes.json();
-                return hiraData[0][1].find(s => !/[一-龠]/.test(s)) || text;
+                return wanakana.toHiragana(fixed);
+            } catch (e) {
+                console.error("読みの取得に失敗しました", e);
+                return "";
             }
-        } catch (e) {}
-        return "";
-    }
-
-    async function getKanjis(hira) {
-        try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
-            const data = await res.json();
-            return data[0][1].filter(c => /[一-龠]/.test(c));
-        } catch (e) { return []; }
-    }
-
-    function updateMain(kanji, reading) {
-        target.style.display = 'flex';
-        // 読みが取れたらルビ付き、取れなければそのまま
-        if (reading && reading !== kanji) {
-            hugeText.innerHTML = `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
-        } else {
-            hugeText.innerText = kanji;
         }
-        adjustSize();
-    }
-
-    function adjustSize() {
-        const maxWidth = wrapper.offsetWidth * 0.85;
-        const maxHeight = wrapper.offsetHeight * 0.75;
-        let fontSize = 200;
-        hugeText.style.fontSize = fontSize + "px";
-        while ((hugeText.offsetWidth > maxWidth || hugeText.offsetHeight > maxHeight) && fontSize > 20) {
-            fontSize -= 5;
-            hugeText.style.fontSize = fontSize + "px";
-        }
-    }
-
-    input.addEventListener('input', () => {
-        const val = input.value.trim();
-        clearTimeout(timer);
-        if(!val) { target.style.display = 'none'; return; }
-
-        // 入力の瞬間、まずルビなしで大きく出す
-        updateMain(val, "");
-
-        timer = setTimeout(async () => {
-            const isInputKanji = /[一-龠]/.test(val);
-            let reading = "";
-            let mainWord = val;
-            let kanjiList = [];
-
-            if (isInputKanji) {
-                // 漢字が入力された場合
-                reading = await getReading(val);
-                updateMain(val, reading);
-                kanjiList = await getKanjis(reading);
-            } else {
-                // ひらがなが入力された場合
-                kanjiList = await getKanjis(val);
-                mainWord = kanjiList[0] || val;
-                reading = val;
-                updateMain(mainWord, reading);
-            }
-            renderSide(kanjiList, mainWord, reading);
-        }, 300);
-    });
-
-    function renderSide(list, current, reading) {
-        const side = document.getElementById('suggestion-list');
-        const title = document.getElementById('side-title');
-        side.innerHTML = '';
-        const filtered = list.filter(k => k !== current).slice(0, 10);
-        if (filtered.length > 0) {
-            title.style.display = 'block';
-            filtered.forEach(k => {
-                const card = document.createElement('div');
-                card.className = 'sub-card';
-                card.onclick = () => { input.value = k; updateMain(k, reading); };
-                card.innerHTML = `<span style="font-size:24px;"><ruby>${k}<rt>${reading}</rt></ruby></span>`;
-                side.appendChild(card);
-            });
-        } else { title.style.display = 'none'; }
-    }
-    window.addEventListener('resize', adjustSize);
-</script>
-</body>
-</html>
