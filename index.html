@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（合体表示・解決版）</title>
+    <title>かんじ・でか辞書（完全機能版）</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         :root {
@@ -38,14 +38,16 @@
         }
         .sub-card {
             background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer;
+            transition: background 0.2s;
         }
+        .sub-card:hover { background: #edf2f7; }
         rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「給食室」や「きゅうしょくしつ」とうってみてね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「給食室」や「かんじ」とうってみてね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -81,19 +83,18 @@
         } catch (e) { return text; }
     }
 
-    // 文字列を「すべて合体させて」漢字に変換する関数
-    async function getFullConversion(text) {
+    // 変換候補の生データを取得する関数
+    async function getConversionData(text) {
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            // dataは[[単語1, [候補]], [単語2, [候補]]...]となっているので、全部の[0]番目を合体
-            return data.map(segment => segment[1][0]).join('');
-        } catch (e) { return text; }
+            return data; // [[単語1, [候補...]], [単語2, [候補...]]]
+        } catch (e) { return []; }
     }
 
     function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
-        // 入力そのものと読みが同じ（ひらがな入力のまま）ならルビを表示しない
+        // ひらがなのみ、または読みと同じならルビなし
         const hasKanji = /[一-龠]/.test(kanji);
         hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
         adjustFontSize();
@@ -103,7 +104,7 @@
         let fontSize = 200;
         hugeText.style.fontSize = fontSize + "px";
         const box = target.getBoundingClientRect();
-        // カードの幅と高さに収まるまでフォントサイズを下げる
+        // 枠内に収まるようにサイズダウン
         while ((hugeText.offsetWidth > box.width * 0.9 || hugeText.offsetHeight > box.height * 0.8) && fontSize > 20) {
             fontSize -= 5;
             hugeText.style.fontSize = fontSize + "px";
@@ -116,23 +117,52 @@
         if(!val) {
             target.style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
+            document.getElementById('side-title').style.display = 'none';
             return;
         }
 
         timer = setTimeout(async () => {
-            // 1. 読み（ひらがな）を確定
+            // 1. 読み（ひらがな）を取得
             const reading = await getReading(val);
             
-            // 2. 漢字を表示（漢字入力ならそのまま、ひらがななら全力変換）
+            // 2. 変換データを取得
+            const conversionData = await getConversionData(reading);
+            
+            // 3. メイン表示の決定
+            // 漢字入力ならそのまま、ひらがななら変換データの「一番目の候補」を全部つなげる
             const isInputKanji = /[一-龠]/.test(val);
-            const mainDisplay = isInputKanji ? val : await getFullConversion(val);
+            const mainText = isInputKanji ? val : conversionData.map(segment => segment[1][0]).join('');
 
-            updateDisplay(mainDisplay, reading);
+            updateDisplay(mainText, reading);
 
-            // 3. サイドバーは「最初の単語の他の候補」を出しておく（おまけ）
-            const title = document.getElementById('side-title');
-            title.style.display = 'none'; 
-            document.getElementById('suggestion-list').innerHTML = '';
+            // 4. サイドバー（候補カード）の作成
+            const sideList = document.getElementById('suggestion-list');
+            const sideTitle = document.getElementById('side-title');
+            sideList.innerHTML = '';
+
+            // 変換結果が「1単語」のときだけ候補を出す（混乱防止）
+            // 例：「かんじ」→○、「きゅうしょくしつ」→○（辞書にあれば）、「きょうはいいてんき」→×
+            if (conversionData.length === 1) {
+                const candidates = conversionData[0][1];
+                // メイン表示と違うものだけを抽出
+                const filtered = candidates.filter(c => c !== mainText).slice(0, 10);
+
+                if (filtered.length > 0) {
+                    sideTitle.style.display = 'block';
+                    filtered.forEach(k => {
+                        const card = document.createElement('div');
+                        card.className = 'sub-card';
+                        card.onclick = () => { input.value = k; updateDisplay(k, reading); };
+                        card.innerHTML = `<ruby>${k}<rt>${reading}</rt></ruby>`;
+                        sideList.appendChild(card);
+                    });
+                } else {
+                    sideTitle.style.display = 'none';
+                }
+            } else {
+                // 複数単語に分かれた場合は、ややこしいので候補を出さない
+                sideTitle.style.display = 'none';
+            }
             
         }, 500);
     });
