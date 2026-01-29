@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネしてポン！ | かんじ書き写しツール</title>
+    <title>マネしてポン！ | 音声入力つき</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UDデジタル教科書体 N-R", sans-serif;
             --main-bg: #fdfaf5;
             --accent-orange: #ff9900;
+            --accent-red: #ff4b4b;
             --text-color: #333;
             --card-bg: #ffffff;
         }
@@ -26,21 +27,49 @@
             background: white; padding: 10px 20px; 
             box-shadow: 0 4px 0 rgba(0,0,0,0.05);
             z-index: 100; display: flex; align-items: center; justify-content: space-between;
+            gap: 10px;
         }
 
         .logo {
             font-size: 28px; font-weight: bold; color: var(--accent-orange);
-            display: flex; align-items: center; gap: 8px;
+            display: flex; flex-direction: column; line-height: 1;
+        }
+        .logo span { font-size: 12px; color: #888; margin-top: 5px; }
+
+        /* 入力エリアのコンテナ */
+        .input-container {
+            display: flex; align-items: center; justify-content: center;
+            flex-grow: 1; max-width: 600px; position: relative;
         }
 
-        .logo span { font-size: 14px; color: #888; display: block; }
-
         #input-text {
-            width: 40%; max-width: 500px; padding: 12px 25px; font-size: 20px; 
+            width: 100%; padding: 12px 60px 12px 25px; font-size: 20px; 
             border: 3px solid #f0f0f0; border-radius: 50px; outline: none;
             background: #f9f9f9; transition: 0.3s;
         }
         #input-text:focus { border-color: var(--accent-orange); background: white; }
+
+        /* マイクボタン */
+        #mic-btn {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer;
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s; color: #aaa;
+        }
+        #mic-btn:hover { background-color: #eee; color: #666; }
+        
+        /* 録音中のスタイル */
+        #mic-btn.listening {
+            color: white; background-color: var(--accent-red);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 75, 75, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+        }
 
         /* メインレイアウト */
         .app-layout { display: flex; flex: 1; overflow: hidden; }
@@ -49,7 +78,6 @@
             flex: 3; padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        /* お手本カード */
         .focus-card {
             background: var(--card-bg); width: 100%; height: 90%; 
             border-radius: 40px; border: 8px solid var(--accent-orange);
@@ -58,19 +86,14 @@
             overflow: hidden;
         }
 
-        /* ガイド線（十字線） */
         .focus-card::before, .focus-card::after {
-            content: ""; position: absolute; background-color: #eee; z-index: 1;
+            content: ""; position: absolute; background-color: #f0f0f0; z-index: 1;
         }
         .focus-card::before { width: 2px; height: 100%; left: 50%; }
         .focus-card::after { height: 2px; width: 100%; top: 50%; }
 
-        .huge-text { 
-            position: relative; z-index: 10; color: #000; 
-            text-align: center; line-height: 1.1; 
-        }
+        .huge-text { position: relative; z-index: 10; color: #000; text-align: center; line-height: 1.1; }
 
-        /* サイドバー */
         .side-column {
             flex: 1; background-color: white; border-left: 4px solid #f0f0f0; 
             padding: 20px; overflow-y: auto;
@@ -93,10 +116,21 @@
 
 <header>
     <div class="logo">
-        <div>マネしてポン！<span>かんじ おてほん ツール</span></div>
+        マネしてポン！<span>かんじ おてほん ツール</span>
     </div>
-    <input type="text" id="input-text" placeholder="ここに うちこんでね" autocomplete="off">
-    <div style="width: 100px;"></div> </header>
+    
+    <div class="input-container">
+        <input type="text" id="input-text" placeholder="ここに うちこんでね" autocomplete="off">
+        <button id="mic-btn" title="音声入力">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+        </button>
+    </div>
+
+    <div style="width: 100px;"></div>
+</header>
 
 <div class="app-layout">
     <main class="main-column">
@@ -117,7 +151,52 @@
     const hugeText = document.getElementById('huge-text');
     const target = document.getElementById('main-target');
     const hint = document.getElementById('hint');
+    const micBtn = document.getElementById('mic-btn');
     let timer = null;
+
+    // --- 音声入力の設定 ---
+    // ブラウザが対応しているかチェック
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP'; // 日本語
+        recognition.interimResults = false; // 確定した結果だけ受け取る
+
+        micBtn.onclick = () => {
+            if (micBtn.classList.contains('listening')) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        };
+
+        // 録音開始
+        recognition.onstart = () => {
+            micBtn.classList.add('listening');
+            input.placeholder = "きいてます...";
+        };
+
+        // 録音終了
+        recognition.onend = () => {
+            micBtn.classList.remove('listening');
+            input.placeholder = "ここに うちこんでね";
+        };
+
+        // 結果が出たとき
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            input.value = transcript;
+            // 手入力したのと同じ扱いにする（変換処理を走らせる）
+            input.dispatchEvent(new Event('input'));
+        };
+    } else {
+        // 対応していないブラウザの場合
+        micBtn.style.display = 'none';
+        console.log("このブラウザは音声入力に対応していません");
+    }
+
+    // --- 以下、いつもの変換ロジック ---
 
     async function getReading(text) {
         try {
@@ -158,7 +237,7 @@
     }
 
     function adjustFontSize() {
-        let fontSize = 350; // 最大サイズをアップ
+        let fontSize = 350;
         hugeText.style.fontSize = fontSize + "px";
         const box = target.getBoundingClientRect();
         while ((hugeText.offsetWidth > box.width * 0.85 || hugeText.offsetHeight > box.height * 0.8) && fontSize > 20) {
