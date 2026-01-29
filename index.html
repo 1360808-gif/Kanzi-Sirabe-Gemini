@@ -279,7 +279,8 @@
                 if (info) {
                     const tag = document.createElement('div');
                     tag.className = 'grade-tag';
-                    const searchUrl = `https://www.google.com/search?q=site:kakijun.jp+${encodeURIComponent(char)}`;
+                    // ▼▼▼ 修正箇所：kakijun.com を検索する裏技URLに書き換えました ▼▼▼
+                    const searchUrl = `https://www.google.com/search?q=site:kakijun.com+${encodeURIComponent(char)}+書き順`;
 
                     tag.innerHTML = `
                         <div class="tag-left">
