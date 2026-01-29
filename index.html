@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネしてポン！ | かきじゅん アニメ版</title>
+    <title>マネしてポン！ | かきじゅん 修正版</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
-        /* 基本デザインはVer 6.1を継承 */
+        /* --- デザインはそのまま --- */
         :root {
             --primary-font: "UD Digi Kyokasho N-R", "UDデジタル教科書体 N-R", sans-serif;
             --main-bg: #fdfaf5;
@@ -92,7 +92,6 @@
             transition: 0.2s; text-decoration: none; color: #333;
         }
         .stroke-order-btn:hover { border-color: #2196f3; background: #e3f2fd; transform: scale(1.1); color: #2196f3; }
-        /* アイコンを再生マークに変更 */
         .stroke-order-btn::after { content: "▶️"; font-size: 18px; } 
 
         .g-1 { background-color: #e91e63; } .g-2 { background-color: #ff9800; }
@@ -132,7 +131,7 @@
 </div>
 
 <script>
-    /* 漢字データ (Ver 5.0準拠) */
+    /* 漢字データ (省略) */
     const GRADE_DATA = {
         1: "一右雨円王音下火花貝学気休玉金空月犬見口校左三山子四糸字耳七車手出女小上森人水正生青夕石赤千川先早草足村大中田二日入年白八百木本名目立力林六",
         2: "引羽雲園遠何科夏家歌画回会海絵外角楽活間丸岩顔汽記帰弓牛魚京強教近兄形計元言原戸古午後語工公広交光考行高黄合谷国黒今才細作算止市矢姉思紙寺自時室社弱首秋週春書少場色食心新親図数西声星晴切雪船線前組走多太体台地池知茶昼長鳥朝直通弟店点電刀冬当東答頭同道読内肉馬売買麦半番父風分聞米歩母方北毎妹万明鳴毛門野用曜羊来藍里理立話",
@@ -205,16 +204,16 @@
                     const tag = document.createElement('div');
                     tag.className = 'grade-tag';
                     
-                    // ★ここを変更しました：アニメーションサイトへの検索リンク
-                    // 「漢字書き順辞典」は日本で最もアニメーションが豊富なサイトです
-                    const searchUrl = `https://kakijun.jp/main/search_kanji.php?q=${encodeURIComponent(char)}`;
+                    // ★ここを修正！ 404にならない「サイト指定検索」に変更しました
+                    // "site:kakijun.jp 漢字" で検索すると、その漢字のページがトップに出ます
+                    const searchUrl = `https://www.google.com/search?q=site:kakijun.jp+${encodeURIComponent(char)}`;
 
                     tag.innerHTML = `
                         <div class="tag-left">
                             <span class="char">${char}</span>
                             <span class="level ${info.className}">${info.label}</span>
                         </div>
-                        <a href="${searchUrl}" target="_blank" class="stroke-order-btn" title="うごく書き順をみる"></a>
+                        <a href="${searchUrl}" target="_blank" class="stroke-order-btn" title="アニメーションを検索"></a>
                     `;
                     gradeRow.appendChild(tag);
                 }
