@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（完全機能版）</title>
+    <title>かんじ・でか辞書（給食室スペシャル）</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         :root {
@@ -38,16 +38,17 @@
         }
         .sub-card {
             background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.2s; border-bottom: 2px solid #edf2f7;
         }
         .sub-card:hover { background: #edf2f7; }
+        .sub-card ruby { font-size: 1.5rem; }
         rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「給食室」や「かんじ」とうってみてね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="「きゅうしょくしつ」とうってみてね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -69,13 +70,14 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // Google翻訳エンジンを使用して「読み（ひらがな）」を確定
+    // 1. 読み仮名を取得する（Google翻訳：読み上げ用データ）
     async function getReading(text) {
         try {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`;
-            const response = await fetch(url);
-            const data = await response.json();
+            const res = await fetch(url);
+            const data = await res.json();
             let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
+            // ローマ字をきれいに整形してひらがなへ
             let fixed = romaji.toLowerCase().replace(/[~~\-ー\s]/g, '');
             const romajiMap = { 'ā': 'aa', 'ī': 'ii', 'ū': 'uu', 'ē': 'ei', 'ō': 'ou' };
             Object.keys(romajiMap).forEach(key => { fixed = fixed.split(key).join(romajiMap[key]); });
@@ -83,18 +85,31 @@
         } catch (e) { return text; }
     }
 
-    // 変換候補の生データを取得する関数
-    async function getConversionData(text) {
+    // 2. メイン画面用：賢い変換（Google翻訳：日→日翻訳）
+    // 「きゅうしょくしつ」→「給食室」を一発で出すための最強の手段
+    async function getSmartKanji(text) {
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            // 翻訳結果の文章をそのまま返す（分解させない！）
+            return data[0][0][0];
+        } catch (e) { return text; }
+    }
+
+    // 3. サイドバー用：細かい候補（Google IME）
+    // ここはあえて細かく分解させて、他の候補を出させる
+    async function getSideCandidates(text) {
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            return data; // [[単語1, [候補...]], [単語2, [候補...]]]
+            return data; // [[単語, [候補...]], [単語, [候補...]]]
         } catch (e) { return []; }
     }
 
+    // 画面更新
     function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
-        // ひらがなのみ、または読みと同じならルビなし
         const hasKanji = /[一-龠]/.test(kanji);
         hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
         adjustFontSize();
@@ -104,7 +119,6 @@
         let fontSize = 200;
         hugeText.style.fontSize = fontSize + "px";
         const box = target.getBoundingClientRect();
-        // 枠内に収まるようにサイズダウン
         while ((hugeText.offsetWidth > box.width * 0.9 || hugeText.offsetHeight > box.height * 0.8) && fontSize > 20) {
             fontSize -= 5;
             hugeText.style.fontSize = fontSize + "px";
@@ -114,6 +128,7 @@
     input.addEventListener('input', () => {
         const val = input.value.trim();
         clearTimeout(timer);
+        
         if(!val) {
             target.style.display = 'none';
             document.getElementById('suggestion-list').innerHTML = '';
@@ -122,48 +137,51 @@
         }
 
         timer = setTimeout(async () => {
-            // 1. 読み（ひらがな）を取得
+            const sideList = document.getElementById('suggestion-list');
+            const sideTitle = document.getElementById('side-title');
+
+            // --- メイン画面の処理 ---
             const reading = await getReading(val);
-            
-            // 2. 変換データを取得
-            const conversionData = await getConversionData(reading);
-            
-            // 3. メイン表示の決定
-            // 漢字入力ならそのまま、ひらがななら変換データの「一番目の候補」を全部つなげる
             const isInputKanji = /[一-龠]/.test(val);
-            const mainText = isInputKanji ? val : conversionData.map(segment => segment[1][0]).join('');
+            
+            // 漢字入力ならそのまま、ひらがななら「翻訳API」で賢く一発変換
+            let mainText = val;
+            if (!isInputKanji) {
+                mainText = await getSmartKanji(val);
+            }
 
             updateDisplay(mainText, reading);
 
-            // 4. サイドバー（候補カード）の作成
-            const sideList = document.getElementById('suggestion-list');
-            const sideTitle = document.getElementById('side-title');
+            // --- サイドバーの処理（おまけ） ---
+            // メインとは別に、変換候補を裏で取得する
+            const candidatesData = await getSideCandidates(reading); // 読みから変換
             sideList.innerHTML = '';
-
-            // 変換結果が「1単語」のときだけ候補を出す（混乱防止）
-            // 例：「かんじ」→○、「きゅうしょくしつ」→○（辞書にあれば）、「きょうはいいてんき」→×
-            if (conversionData.length === 1) {
-                const candidates = conversionData[0][1];
-                // メイン表示と違うものだけを抽出
-                const filtered = candidates.filter(c => c !== mainText).slice(0, 10);
-
-                if (filtered.length > 0) {
-                    sideTitle.style.display = 'block';
-                    filtered.forEach(k => {
-                        const card = document.createElement('div');
-                        card.className = 'sub-card';
-                        card.onclick = () => { input.value = k; updateDisplay(k, reading); };
-                        card.innerHTML = `<ruby>${k}<rt>${reading}</rt></ruby>`;
-                        sideList.appendChild(card);
+            
+            // 候補があれば表示
+            if (candidatesData.length > 0) {
+                sideTitle.style.display = 'block';
+                // 各単語ブロックごとに候補を出す
+                candidatesData.forEach(segment => {
+                    const wordCandidates = segment[1].slice(0, 5); // 各単語トップ5
+                    wordCandidates.forEach(cand => {
+                        // メインと同じ文字は出さない（邪魔だから）
+                        if (cand !== mainText && !val.includes(cand)) {
+                            const card = document.createElement('div');
+                            card.className = 'sub-card';
+                            card.onclick = () => { 
+                                // クリックしたら、その文字をメインにする
+                                input.value = cand; 
+                                updateDisplay(cand, reading); 
+                            };
+                            card.innerHTML = `<ruby>${cand}<rt>${reading}</rt></ruby>`;
+                            sideList.appendChild(card);
+                        }
                     });
-                } else {
-                    sideTitle.style.display = 'none';
-                }
+                });
             } else {
-                // 複数単語に分かれた場合は、ややこしいので候補を出さない
                 sideTitle.style.display = 'none';
             }
-            
+
         }, 500);
     });
 
