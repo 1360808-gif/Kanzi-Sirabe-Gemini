@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネしてポン！ | アイコン刷新版</title>
+    <title>マネしてポン！ | メッセージ付き</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         /* --- 全体デザイン --- */
@@ -11,8 +11,8 @@
             --primary-font: "UD Digi Kyokasho N-R", "UDデジタル教科書体 N-R", sans-serif;
             --main-bg: #fdfaf5;
             --accent-orange: #ff9900;
-            --accent-red: #ea4335; /* Google Redに近い色 */
-            --mic-inactive: #5f6368; /* Google Gray */
+            --accent-red: #ea4335;
+            --mic-inactive: #5f6368;
             --text-color: #333;
             --card-bg: #ffffff;
         }
@@ -27,21 +27,45 @@
         header {
             background: white; padding: 10px 20px; 
             box-shadow: 0 4px 0 rgba(0,0,0,0.05);
-            z-index: 100; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            z-index: 100; 
+            display: flex; align-items: center; 
+            /* justify-contentは指定せず、marginでレイアウト制御します */
+            gap: 20px;
         }
-        .logo { font-size: 28px; font-weight: bold; color: var(--accent-orange); line-height: 1; }
+        
+        .logo { font-size: 28px; font-weight: bold; color: var(--accent-orange); line-height: 1; flex-shrink: 0; }
         .logo span { font-size: 12px; color: #888; margin-top: 5px; display: block; }
 
-        .input-container { flex-grow: 1; max-width: 600px; position: relative; display: flex; align-items: center; }
+        /* 検索窓エリア：margin-right: auto で右側の要素（メッセージ）を端に押しやる */
+        .input-container { 
+            width: 450px; /* 幅を少し固定してコンパクトに */
+            position: relative; display: flex; align-items: center; 
+            margin-right: auto; /* これがポイント！右に余白を全部使う */
+        }
+
         #input-text {
             width: 100%; padding: 12px 60px 12px 25px; font-size: 20px; 
             border: 3px solid #f0f0f0; border-radius: 50px; outline: none;
             background: #f9f9f9; transition: 0.3s; box-sizing: border-box;
-            height: 54px; /* 高さ固定 */
+            height: 54px;
         }
         #input-text:focus { border-color: var(--accent-orange); background: white; }
 
-        /* --- Gemini風マイクボタンのスタイル --- */
+        /* 先生へのメッセージエリア */
+        .teacher-message {
+            font-size: 11px;
+            color: #666;
+            background-color: #f4f6f8;
+            padding: 8px 15px;
+            border-radius: 12px;
+            border: 2px dashed #dde1e6;
+            line-height: 1.5;
+            flex-shrink: 0; /* 縮まないようにする */
+            display: flex;
+            align-items: center;
+        }
+
+        /* SVGマイクボタン */
         #mic-btn {
             position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
             background: transparent; border: none; cursor: pointer; 
@@ -53,8 +77,6 @@
             width: 24px; height: 24px; fill: var(--mic-inactive); transition: fill 0.3s;
         }
         #mic-btn:hover { background-color: rgba(0,0,0,0.05); }
-
-        /* マイクON時のアニメーション */
         #mic-btn.listening svg { fill: var(--accent-red); }
         #mic-btn.listening {
             background-color: rgba(234, 67, 53, 0.1);
@@ -66,13 +88,9 @@
             100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
         }
 
-        /* --- メインコンテンツ --- */
+        /* メイン・サイドカラム */
         .app-layout { display: flex; flex: 1; overflow: hidden; }
-
-        .main-column {
-            flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-        }
-
+        .main-column { flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
         .focus-card {
             background: var(--card-bg); width: 100%; height: 60%; 
             border-radius: 40px; border: 8px solid var(--accent-orange);
@@ -80,19 +98,12 @@
             position: relative; box-shadow: 0 10px 0 rgba(0,0,0,0.05);
             margin-bottom: 20px;
         }
-        .focus-card::before, .focus-card::after {
-            content: ""; position: absolute; background-color: #f0f0f0; z-index: 1;
-        }
+        .focus-card::before, .focus-card::after { content: ""; position: absolute; background-color: #f0f0f0; z-index: 1; }
         .focus-card::before { width: 2px; height: 100%; left: 50%; }
         .focus-card::after { height: 2px; width: 100%; top: 50%; }
-
         .huge-text { position: relative; z-index: 10; color: #000; text-align: center; line-height: 1.1; }
 
-        #grade-breakdown {
-            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;
-            min-height: 80px; overflow-y: auto;
-        }
-
+        #grade-breakdown { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; min-height: 80px; overflow-y: auto; }
         .grade-tag {
             background: white; padding: 8px 12px; border-radius: 12px;
             box-shadow: 0 3px 0 rgba(0,0,0,0.1); border: 2px solid #eee;
@@ -100,11 +111,9 @@
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
         .tag-left { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
         .tag-left .char { font-size: 24px; font-weight: bold; margin-bottom: 4px; }
         .tag-left .level { font-size: 11px; font-weight: bold; color: white; padding: 2px 8px; border-radius: 10px; width: 100%; text-align: center; }
-
         .stroke-order-btn {
             background: #fff; border: 2px solid #ddd; border-radius: 8px;
             cursor: pointer; font-size: 20px; width: 40px; height: 40px;
@@ -128,6 +137,7 @@
 
 <header>
     <div class="logo">マネしてポン！<span>かんじ おてほん ツール</span></div>
+    
     <div class="input-container">
         <input type="text" id="input-text" placeholder="ここに うちこんでね" autocomplete="off">
         <button id="mic-btn" aria-label="音声入力">
@@ -137,7 +147,12 @@
             </svg>
         </button>
     </div>
-    <div style="width: 100px;"></div>
+
+    <div class="teacher-message">
+        なにか おかしな ところを みつけたら、<br>
+        先生(せんせい)に おしえてね。<br>
+        なおせるなら、なおすよ。
+    </div>
 </header>
 
 <div class="app-layout">
@@ -156,7 +171,7 @@
 </div>
 
 <script>
-    /* 漢字データ (省略) */
+    /* 漢字データ */
     const GRADE_DATA = {
         1: "一右雨円王音下火花貝学気休玉金空月犬見口校左三山子四糸字耳七車手出女小上森人水正生青夕石赤千川先早草足村大中田二日入年白八百木本名目立力林六",
         2: "引羽雲園遠何科夏家歌画回会海絵外角楽活間丸岩顔汽記帰弓牛魚京強教近兄形計元言原戸古午後語工公広交光考行高黄合谷国黒今才細作算止市矢姉思紙寺自時室社弱首秋週春書少場色食心新親図数西声星晴切雪船線前組走多太体台地池知茶昼長鳥朝直通弟店点電刀冬当東答頭同道読内肉馬売買麦半番父風分聞米歩母方北毎妹万明鳴毛門野用曜羊来藍里理立話",
