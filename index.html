@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（ハイブリッド版）</title>
+    <title>かんじ・でか辞書（一般候補優先版）</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         :root {
@@ -48,7 +48,7 @@
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="きゅうしょくしつ / 給食室" autocomplete="off">
+    <input type="text" id="input-text" placeholder="きゅうしょくしつ / 学校" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -70,7 +70,7 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // A. 読み仮名取得（共通）
+    // 読み仮名取得（共通）
     async function getReading(text) {
         try {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`;
@@ -84,24 +84,22 @@
         } catch (e) { return text; }
     }
 
-    // B. 賢い漢字変換（ひらがな入力用：Google翻訳API）
+    // 賢い漢字変換（翻訳AI：文脈重視）
     async function getSmartKanji(text) {
         try {
-            // dt=t で翻訳結果を取得（日→日なので漢字変換になる）
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
             const res = await fetch(url);
             const data = await res.json();
-            // 文章全体をひとつながりで返す
             return data[0][0][0]; 
         } catch (e) { return text; }
     }
 
-    // C. 候補取得（サイドバー用：Google IME API）
-    async function getSideCandidates(text) {
+    // 一般的な変換候補（IME辞書：頻度順）
+    async function getImeCandidates(text) {
         try {
             const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            return data; 
+            return data; // [[単語, [候補...]], [単語, [候補...]]]
         } catch (e) { return []; }
     }
 
@@ -136,37 +134,40 @@
         timer = setTimeout(async () => {
             const sideList = document.getElementById('suggestion-list');
             const sideTitle = document.getElementById('side-title');
-            
-            // 入力に漢字が含まれているかチェック！
             const isInputKanji = /[一-龠]/.test(val);
             
             let mainText = val;
             let reading = "";
 
-            // --- ご提案の「使い分け」ロジック ---
-            
             if (isInputKanji) {
-                // パターン1：漢字入力されたとき（例：給食室）
-                // ★以前のうまくいっていたルビシステム
-                // メイン表示は「入力そのまま」にする
+                // 【パターンA】漢字入力時：そのまま表示
                 mainText = val;
-                reading = await getReading(val); // 読みだけ調べる
-            
+                reading = await getReading(val);
             } else {
-                // パターン2：ひらがな入力されたとき（例：きゅうしょくしつ）
-                // ★賢い変換システム（翻訳API）を使う
-                // 翻訳APIなら「きゅうしょくしつ」を文脈判断で「給食室」にしてくれる
-                mainText = await getSmartKanji(val);
-                reading = val; // 入力がそのまま読みになる
+                // 【パターンB】ひらがな入力時：最適な変換を探す
+                reading = val;
+                
+                // 1. まずIME辞書（一般的な候補）を調べる
+                const imeData = await getImeCandidates(val);
+                
+                // 2. 辞書が「1つの言葉」として認識してくれたかチェック
+                // （例：「がっこう」→○、「きゅうしょくしつ」→？、「きょうは」→×）
+                if (imeData.length === 1) {
+                    // 1つの言葉なら、その「第1候補」が最も一般的！
+                    mainText = imeData[0][1][0];
+                } else {
+                    // 言葉がバラバラにされそうなら、翻訳AI（文脈重視）に任せる
+                    // これで「給食室」が守られる
+                    mainText = await getSmartKanji(val);
+                }
             }
 
-            // 画面更新
             updateDisplay(mainText, reading);
 
-            // --- サイドバー（おまけ） ---
-            // 常に「読み」を使って候補を探す
+            // --- サイドバー（常にIMEの候補を出す） ---
             const searchKey = isInputKanji ? reading : val;
-            const candidatesData = await getSideCandidates(searchKey);
+            // さっき取得していなければ取得
+            const candidatesData = await getImeCandidates(searchKey);
             
             sideList.innerHTML = '';
             if (candidatesData.length > 0) {
@@ -174,15 +175,10 @@
                 candidatesData.forEach(segment => {
                     const wordCandidates = segment[1].slice(0, 5);
                     wordCandidates.forEach(cand => {
-                        // メインと同じものは出さない
                         if (cand !== mainText) {
                             const card = document.createElement('div');
                             card.className = 'sub-card';
-                            card.onclick = () => { 
-                                // クリックで上書き
-                                input.value = cand; 
-                                updateDisplay(cand, reading); 
-                            };
+                            card.onclick = () => { input.value = cand; updateDisplay(cand, reading); };
                             card.innerHTML = `<ruby>${cand}<rt>${reading}</rt></ruby>`;
                             sideList.appendChild(card);
                         }
