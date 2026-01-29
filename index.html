@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かんじ・でか辞書（翻訳エンジン搭載版）</title>
+    <title>かんじ・でか辞書（賢い変換版）</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         :root {
@@ -11,54 +11,41 @@
             --main-bg: #f5f7f9;
             --accent-orange: #e67e22;
         }
-
         body {
             font-family: var(--primary-font);
             background-color: var(--main-bg);
             margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
-
         header {
-            background: white; padding: 15px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background: white; padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             z-index: 100; display: flex; justify-content: center;
         }
-
         #input-text {
             width: 100%; max-width: 800px; padding: 12px 25px; font-size: 24px; 
             border: 3px solid #e1e8ed; border-radius: 50px; outline: none;
         }
-
         .app-layout { display: flex; flex: 1; overflow: hidden; }
-
         .main-column {
-            flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 3; padding: 20px; display: flex; align-items: center; justify-content: center;
         }
-
         .focus-card {
-            background: white; width: 95%; height: 85%;
-            padding: 20px; border-radius: 30px; border: 6px solid var(--accent-orange);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: white; width: 95%; height: 85%; border-radius: 30px; border: 6px solid var(--accent-orange);
+            display: flex; align-items: center; justify-content: center;
         }
-
         .huge-text { display: inline-block; color: #1a202c; line-height: 1.1; text-align: center; }
-
         .side-column {
             flex: 1; background-color: #ffffff; border-left: 2px solid #e2e8f0; padding: 20px; overflow-y: auto;
         }
-
         .sub-card {
             background: #f8fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; cursor: pointer;
         }
-
         rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <input type="text" id="input-text" placeholder="「漢字」や「学校」とうってみてね" autocomplete="off">
+    <input type="text" id="input-text" placeholder="きゅうしょくしつ とうってみてね" autocomplete="off">
 </header>
 
 <div class="app-layout">
@@ -80,39 +67,36 @@
     const target = document.getElementById('main-target');
     let timer = null;
 
-    // --- ご提示いただいたGoogle翻訳エンジンを利用した「読み」取得 ---
-    async function getReading(word) {
-        if (!word) return "";
+    // 言葉を適切に区切るためのセグメンター
+    const segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' });
+
+    // Google翻訳エンジンを使用して「読み」を確定
+    async function getReading(text) {
         try {
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(word)}`;
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`;
             const response = await fetch(url);
             const data = await response.json();
             let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
-            
-            // ローマ字を整形（長音記号などを変換）
             let fixed = romaji.toLowerCase().replace(/[~~\-ー\s]/g, '');
             const romajiMap = { 'ā': 'aa', 'ī': 'ii', 'ū': 'uu', 'ē': 'ei', 'ō': 'ou' };
             Object.keys(romajiMap).forEach(key => { fixed = fixed.split(key).join(romajiMap[key]); });
-            
-            // wanakanaでひらがなに変換
             return wanakana.toHiragana(fixed);
-        } catch (e) {
-            return "";
-        }
+        } catch (e) { return text; }
     }
 
-    // 漢字候補のリスト取得（ここは従来のAPIを使用）
-    async function getKanjiOptions(hira) {
+    // 漢字候補を取得（文章として変換させる）
+    async function getKanjiCandidates(text) {
         try {
-            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(hira)}`);
+            // ここで Google CGI 入力 API を使い、一般的な変換候補を呼び出す
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
             const data = await res.json();
-            return data[0][1].filter(c => /[一-龠]/.test(c));
+            // 最初に出るのが「最も一般的な変換」
+            return data[0][1];
         } catch (e) { return []; }
     }
 
     function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
-        // 漢字に変換できない文字（ひらがな等）ならルビなし、漢字ならルビあり
         const hasKanji = /[一-龠]/.test(kanji);
         hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
         adjustFontSize();
@@ -137,32 +121,28 @@
         }
 
         timer = setTimeout(async () => {
-            // 1. まず読み（ひらがな）を確定させる（Google翻訳エンジン）
-            const hira = await getReading(val);
+            // 1. 読みを確定
+            const reading = await getReading(val);
             
-            // 2. その読みから漢字候補を出す
-            const kanjiList = await getKanjiOptions(hira || val);
-            
-            // 3. 表示決定
-            const isInputKanji = /[一-龠]/.test(val);
-            const mainKanji = isInputKanji ? val : (kanjiList[0] || val);
-            const mainReading = hira || (isInputKanji ? "" : val);
+            // 2. 漢字候補を取得（一番人気をメインに）
+            const candidates = await getKanjiCandidates(val);
+            const mainKanji = candidates[0] || val;
 
-            updateDisplay(mainKanji, mainReading);
+            updateDisplay(mainKanji, reading);
 
-            // サイドバー更新
+            // 3. サイドバー
             const side = document.getElementById('suggestion-list');
             const title = document.getElementById('side-title');
             side.innerHTML = '';
-            const filtered = kanjiList.filter(k => k !== mainKanji).slice(0, 10);
+            const filtered = candidates.filter(k => k !== mainKanji).slice(0, 10);
             
             if (filtered.length > 0) {
                 title.style.display = 'block';
                 filtered.forEach(k => {
                     const card = document.createElement('div');
                     card.className = 'sub-card';
-                    card.onclick = () => { input.value = k; updateDisplay(k, mainReading); };
-                    card.innerHTML = `<ruby>${k}<rt>${mainReading}</rt></ruby>`;
+                    card.onclick = () => { updateDisplay(k, reading); };
+                    card.innerHTML = `<ruby>${k}<rt>${reading}</rt></ruby>`;
                     side.appendChild(card);
                 });
             } else { title.style.display = 'none'; }
