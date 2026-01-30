@@ -35,7 +35,7 @@
         .logo { font-size: 28px; font-weight: bold; color: var(--accent-orange); line-height: 1; flex-shrink: 0; }
         .logo span { font-size: 12px; color: #888; margin-top: 5px; display: block; }
 
-        /* 検索窓：右側の余白を自動で埋めて、後続の要素を右端へ */
+        /* 検索窓 */
         .input-container { 
             width: 450px; 
             position: relative; display: flex; align-items: center; 
@@ -50,7 +50,7 @@
         }
         #input-text:focus { border-color: var(--accent-orange); background: white; }
 
-        /* ヘッダー右側の情報エリア（まとめて横並びにする） */
+        /* ヘッダー右側 */
         .header-right-group {
             display: flex;
             align-items: center;
@@ -74,7 +74,7 @@
             text-decoration: none;
             font-size: 10px;
             font-weight: bold;
-            color: #5e35b1; /* マジックっぽい紫 */
+            color: #5e35b1;
             background-color: #ede7f6;
             padding: 6px 12px;
             border-radius: 12px;
@@ -91,7 +91,7 @@
             background-color: #d1c4e9;
         }
         .magic-link::before {
-            content: "✨"; /* キラキラアイコン */
+            content: "✨";
             font-size: 16px;
         }
 
@@ -279,7 +279,7 @@
                 if (info) {
                     const tag = document.createElement('div');
                     tag.className = 'grade-tag';
-                    // ▼▼▼ 修正箇所：kakijun.com を検索する裏技URLに書き換えました ▼▼▼
+                    // kakijun.com へのリンク
                     const searchUrl = `https://www.google.com/search?q=site:kakijun.com+${encodeURIComponent(char)}+書き順`;
 
                     tag.innerHTML = `
