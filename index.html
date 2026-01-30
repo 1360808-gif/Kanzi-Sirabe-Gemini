@@ -1,35 +1,390 @@
-/* --- getReading関数を以下のように書き換えています --- */
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マネしてポン！ | 難読漢字・連携強化版</title>
+    <script src="https://unpkg.com/wanakana"></script>
+    <style>
+        /* --- 全体デザイン --- */
+        :root {
+            --primary-font: "UD Digi Kyokasho N-R", "UDデジタル教科書体 N-R", sans-serif;
+            --main-bg: #fdfaf5;
+            --accent-orange: #ff9900;
+            --accent-red: #ea4335;
+            --mic-inactive: #5f6368;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+        
+        body {
+            font-family: var(--primary-font);
+            background-color: var(--main-bg);
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+            color: var(--text-color);
+        }
 
-// 1. 特殊な読み方の辞書を作成
-const CUSTOM_READINGS = {
-    "鬱": "うつ",
-    "𰻞": "ビャン",
-    "𰻞𰻞麺": "ビャンビャンメン",
-    "薔薇": "ばら",
-    "醤油": "しょうゆ",
-    "味噌": "みそ"
-};
+        header {
+            background: white; padding: 10px 20px; 
+            box-shadow: 0 4px 0 rgba(0,0,0,0.05);
+            z-index: 100; 
+            display: flex; align-items: center; 
+            gap: 20px;
+        }
+        
+        .logo { font-size: 28px; font-weight: bold; color: var(--accent-orange); line-height: 1; flex-shrink: 0; }
+        .logo span { font-size: 12px; color: #888; margin-top: 5px; display: block; }
 
-async function getReading(text) {
-    // まず辞書にあるかチェック
-    if (CUSTOM_READINGS[text]) {
-        return CUSTOM_READINGS[text];
+        /* 検索窓エリア：margin-right: auto で右側の要素を端に寄せる */
+        .input-container { 
+            width: 400px; 
+            position: relative; display: flex; align-items: center; 
+            margin-right: auto; 
+        }
+
+        #input-text {
+            width: 100%; padding: 12px 60px 12px 25px; font-size: 20px; 
+            border: 3px solid #f0f0f0; border-radius: 50px; outline: none;
+            background: #f9f9f9; transition: 0.3s; box-sizing: border-box;
+            height: 54px;
+        }
+        #input-text:focus { border-color: var(--accent-orange); background: white; }
+
+        /* 右側グループ（メッセージとボタン） */
+        .header-right-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .teacher-message {
+            font-size: 10px;
+            color: #777;
+            background-color: #f4f6f8;
+            padding: 6px 12px;
+            border-radius: 12px;
+            border: 2px dashed #dde1e6;
+            line-height: 1.4;
+        }
+
+        .magic-link {
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: bold;
+            color: #5e35b1;
+            background-color: #ede7f6;
+            padding: 8px 14px;
+            border-radius: 12px;
+            border: 2px solid #b39ddb;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .magic-link:hover {
+            transform: translateY(-2px);
+            background-color: #d1c4e9;
+            box-shadow: 0 4px 8px rgba(94, 53, 177, 0.15);
+        }
+        .magic-link::before { content: "✨"; font-size: 14px; }
+
+        /* マイクボタン */
+        #mic-btn {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            background: transparent; border: none; cursor: pointer; 
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #mic-btn svg { width: 24px; height: 24px; fill: var(--mic-inactive); transition: fill 0.3s; }
+        #mic-btn.listening { background-color: rgba(234, 67, 53, 0.1); animation: pulse-ring 1.5s infinite; }
+        #mic-btn.listening svg { fill: var(--accent-red); }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(234, 67, 53, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+        }
+
+        /* レイアウト */
+        .app-layout { display: flex; flex: 1; overflow: hidden; }
+        .main-column { flex: 3; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+        
+        .focus-card {
+            background: var(--card-bg); width: 100%; height: 60%; 
+            border-radius: 40px; border: 8px solid var(--accent-orange);
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; box-shadow: 0 10px 0 rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .focus-card::before { content: ""; position: absolute; background-color: #f0f0f0; z-index: 1; width: 2px; height: 100%; left: 50%; }
+        .focus-card::after { content: ""; position: absolute; background-color: #f0f0f0; z-index: 1; height: 2px; width: 100%; top: 50%; }
+        
+        .huge-text { position: relative; z-index: 10; color: #000; text-align: center; line-height: 1.1; }
+        rt { font-size: 0.35em; color: var(--accent-orange); font-weight: bold; }
+
+        #grade-breakdown { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; min-height: 80px; }
+        .grade-tag {
+            background: white; padding: 8px 12px; border-radius: 12px;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.1); border: 2px solid #eee;
+            display: flex; align-items: center; gap: 10px;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .tag-left { display: flex; flex-direction: column; align-items: center; min-width: 50px; }
+        .tag-left .char { font-size: 24px; font-weight: bold; margin-bottom: 4px; }
+        .tag-left .level { font-size: 11px; font-weight: bold; color: white; padding: 2px 8px; border-radius: 10px; width: 100%; text-align: center; }
+        
+        .stroke-order-btn {
+            background: #fff; border: 2px solid #ddd; border-radius: 8px;
+            cursor: pointer; font-size: 20px; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none; color: #333;
+        }
+        .stroke-order-btn:hover { border-color: #2196f3; background: #e3f2fd; }
+        .stroke-order-btn::after { content: "▶️"; font-size: 18px; }
+
+        /* 学年別カラー */
+        .g-1 { background-color: #e91e63; } .g-2 { background-color: #ff9800; }
+        .g-3 { background-color: #ffc107; color: #333 !important; } .g-4 { background-color: #4caf50; }
+        .g-5 { background-color: #2196f3; } .g-6 { background-color: #9c27b0; }
+        .g-jh { background-color: #34495e; } .g-master { background-color: #222; color: #ffd700 !important; }
+
+        .side-column { flex: 1; background-color: white; border-left: 4px solid #f0f0f0; padding: 20px; overflow-y: auto; }
+        .sub-card { background: #fff; padding: 15px; border-radius: 15px; margin-bottom: 15px; cursor: pointer; border: 2px solid #f0f0f0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">マネしてポン！<span>かんじ おてほん ツール</span></div>
+    
+    <div class="input-container">
+        <input type="text" id="input-text" placeholder="ここに うちこんでね" autocomplete="off">
+        <button id="mic-btn" aria-label="音声入力">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path d="M17 11c0 3.01-2.55 5.5-5.5 5.5S6 14.01 6 11H4c0 3.99 3.1 7.23 6.91 7.91V21h2.18v-2.09C16.89 18.23 20 15 20 11h-3z"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="header-right-group">
+        <div class="teacher-message">
+            なにか おかしな ところが あったら、<br>
+            先生に おしえてね。
+        </div>
+        <a href="https://1360808-gif.github.io/HUrigana-Gemini-2/" target="_blank" class="magic-link">
+            ながい ぶんしょうの ふりがなは<br>
+            「ふりがなマジック」へ
+        </a>
+    </div>
+</header>
+
+<div class="app-layout">
+    <main class="main-column">
+        <div id="main-target" class="focus-card" style="display:none;">
+            <div id="huge-text" class="huge-text"></div>
+        </div>
+        <div id="grade-breakdown"></div>
+        <p id="how-to-write" style="display:none; color:#888; font-size:14px; margin-top:10px;">▶️ ボタンをおすと、うごく「アニメーション」をさがしにいくよ！</p>
+    </main>
+
+    <aside class="side-column">
+        <div id="side-title" style="display:none; font-weight:bold; color:#888; margin-bottom:10px;">ほかの かんじ</div>
+        <div id="suggestion-list"></div>
+    </aside>
+</div>
+
+<script>
+    /* 難読漢字・特殊読み辞書 */
+    const CUSTOM_READINGS = {
+        "鬱": "うつ",
+        "𰻞": "ビャン",
+        "𰻞𰻞麺": "ビャンビャンメン",
+        "薔薇": "ばら",
+        "醤油": "しょうゆ",
+        "味噌": "みそ",
+        "給食室": "きゅうしょくしつ"
+    };
+
+    /* 漢字配当表データ */
+    const GRADE_DATA = {
+        1: "一右雨円王音下火花貝学気休玉金空月犬見口校左三山子四糸字耳七車手出女小上森人水正生青夕石赤千川先早草足村大中田二日入年白八百木本名目立力林六",
+        2: "引羽雲園遠何科夏家歌画回会海絵外角楽活間丸岩顔汽記帰弓牛魚京強教近兄形計元言原戸古午後語工公広交光考行高黄合谷国黒今才細作算止市矢姉思紙寺自時室社弱首秋週春書少場色食心新親図数西声星晴切雪船線前組走多太体台地池知茶昼長鳥朝直通弟店点電刀冬当東答頭同道読内肉馬売買麦半番父風分聞米歩母方北毎妹万明鳴毛門野用曜羊来藍里理立話",
+        3: "悪安暗医委意育員院飲運泳駅央横屋温化荷界開階寒感漢館岸起期客究急級宮球去橋業曲局銀区苦具君係軽血決研県庫湖向幸港号根祭皿仕死使始指歯詩次事持式実写者主守取酒受州拾終習集住重宿所暑助昭消商章勝乗植申身神真深進世整昔全相送想息速族他打対待代第題炭短談着注柱丁帳調追定庭笛鉄転都度投豆島湯登等動童農波配倍箱畑発反坂板皮悲美鼻筆氷表秒病品負部服福物平返勉放味命面問役薬由油有遊予羊洋葉陽様落流旅両緑礼列練路和",
+        4: "愛案以衣位囲胃印英栄塩億加果貨課芽改械害街各覚完官管関観願希季紀喜旗器機議求泣救給挙漁共協鏡競極訓軍郡径型景芸欠結建健験固功好候航康告差菜最材昨札刷殺察参産散残氏司試児治滋辞鹿失借種周祝順初松笑唱焼象照賞臣信成省清静席積折節説浅戦選然争倉巣束側続卒孫帯隊達単置仲貯兆腸低底停的典伝徒努灯堂働特得毒熱念敗梅博飯飛費必票標不夫付府副粉兵別辺変便包法望牧末満未脈民無約勇要養浴利陸良料量輪類令冷例歴連老労録",
+        5: "圧移因永営衛易益液演応往桜恩可仮価河過快賀解格確額刊幹慣眼基寄規技義逆久旧居許境均禁句群経潔件券険検限現減故個護効厚耕鉱構興講混査再災妻採際在財罪雑酸賛支志枝師資飼示似識質舎謝授修述術準序招承証条状常情織職制性政勢精製税責績接設舌絶銭祖素総造像増則測属率損退貸態団断築張提程適敵統導銅徳独任燃能破犯判版比肥非備俵評貧布婦富武復複仏編弁保墓報豊防貿暴務夢迷綿性格確額刊幹慣眼基寄規技義逆久旧居許境均禁句群経潔件券険検限現減故個護効厚耕鉱構興講混査再災妻採際在財罪雑酸賛支志枝師資飼示似識質舎謝授修述術準序招承証条状常情織職制性政勢精製税責績接設舌絶銭祖素総造像増則測属率損退貸態団断築張提程適敵統導銅徳独任燃能破犯判版比肥非備俵評貧布婦富武復複仏編弁保墓報豊防貿暴務夢迷綿輸余預容略留領",
+        6: "胃異遺域宇映延沿我灰拡革閣割株干巻看簡危机揮貴疑吸供胸郷勤筋系敬警劇激穴絹権憲源厳己呼誤后孝皇紅降鋼刻穀骨困砂座済裁策冊蚕至私姿視詞誌磁射捨尺若樹収宗就衆従縦縮熟純処署諸除将傷障城蒸針仁垂推寸盛聖誠宣専泉洗染善奏窓創装層操蔵臓存尊宅担探誕段暖値宙忠著庁頂潮賃痛展討党糖届難乳認納脳派拝背肺俳班晩否批秘腹奮並陛閉片補暮宝訪亡忘棒枚幕密盟模訳郵優幼欲翌乱卵覧裏律臨朗論",
+        7: "亜哀挨曖握扱宛嵐依威為畏尉萎偉椅彙違維慰緯壱逸芋陰隠影鋭越援煙鉛縁汚押奥憶臆虞乙俺卸穏佳架華寡箇稼蚊雅餓介塊怪悔懐戒拐皆劾慨概該核殻獲穫郭較隔岳掛潟喝括渇滑褐轄且釜鎌刈甘汗缶肝冠陥乾勘患貫喚換敢棺款閑勧寛憾還艦鑑含奇祈鬼幾輝儀戯詰却脚及丘朽巨拒拠虚距享凶叫峡挟恐恭脅矯響驚仰凝斤琴菌襟謹吟隅勲薫刑茎契恵啓掲渓蛍傾携継詣慶系茎鶏鯨撃懸謙賢軒遣幻玄孤弧枯誇雇顧鼓互呉娯悟碁侯坑孔巧甲更拘肯侯恒抗攻荒郊衡貢購酵克酷獄駒込頃婚昆恨墾懇佐唆詐砕宰栽索酢錯咲擦撮搾桟傘惨桟暫伺刺嗣施旨脂紫雌摯賜諮侍滋慈軸七執湿漆疾芝赦斜煮遮謝邪愁酬秀臭舟襲蹴修柔充獣銃叔淑粛塾俊舜瞬旬巡盾准殉循潤遵庶叙徐償匠升掌晶焦衝鐘冗嬢錠譲嘱飾殖触辱伸辛侵津唇娠振浸紳診寝慎震薪刃尽甚迅陣尋腎須吹炊帥粋衰酔遂睡穂随髄枢崇据杉澄瀬是姓征斉牲凄制逝婿誓請戚惜籍摂潜繕阻措粗礎双桑掃葬遭憎促属賊拓卓諾但奪脱棚丹嘆淡端胆鍛壇弾恥致遅痴稚緻畜蓄逐秩窒嫡沖抽衷鋳駐弔挑彫眺釣懲超聴沈珍朕陳鎮墜堤訂帝偵抵艇締泥摘滴哲徹撤迭典粘殿斗吐途渡奴怒倒凍唐塔悼痘陶到逃透稲踏謄闘胴峠匿督篤凸突屯豚曇鈍奈那縄軟尼弐如尿妊忍寧猫粘悩濃把覇婆罵排杯輩培媒賠陪伯拍泊舶薄迫漠爆縛肌鉢髪伐罰抜閥伴帆搬畔繁般藩販範煩頒盤蛮卑彼扉批披泌疲被避尾微匹姫漂描苗浜賓頻敏瓶怖扶敷普浮符腐膚譜侮賦赴附侮舞封伏幅覆払沸噴墳憤丙併塀幣弊偏遍片浦捕舗募慕簿芳邦奉抱泡胞俸倣峰砲崩蜂飽褒縫乏忙坊妨房肪某冒剖紡帽傍膨謀北墨牧睦僕没堀本奔翻凡盆麻摩磨魔毎枚昧埋幕膜又抹慢漫魅岬妙眠矛霧娘銘滅免麺茂妄盲耗猛網黙紋冶弥厄躍闇由愉諭癒唯幽悠憂雄誘憂融与誉庸揚揺擁窯養抑揚謡翼羅裸頼雷絡酪欄濫吏履痢離硫粒隆竜慮虜了僚寮療瞭糧陵倫厘隣塁涙累励鈴隷零霊麗齢暦歴列劣烈裂廉恋錬炉露廊楼浪漏老郎六録論惑枠湾腕"
+    };
+
+    function getKanjiGrade(char) {
+        if (!/[一-龠]/.test(char)) return null;
+        for (let g = 1; g <= 7; g++) {
+            if (GRADE_DATA[g] && GRADE_DATA[g].includes(char)) {
+                if (g === 7) return { label: "中学", className: "g-jh" };
+                return { label: g + "年", className: "g-" + g };
+            }
+        }
+        return { label: "達人", className: "g-master" };
     }
 
-    // 辞書になければAPIで取得
-    try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`;
-        const res = await fetch(url);
-        const data = await res.json();
+    const input = document.getElementById('input-text');
+    const hugeText = document.getElementById('huge-text');
+    const target = document.getElementById('main-target');
+    const gradeRow = document.getElementById('grade-breakdown');
+    const howToWrite = document.getElementById('how-to-write');
+
+    /* 読み方取得（カスタム辞書を優先） */
+    async function getReading(text) {
+        if (CUSTOM_READINGS[text]) return CUSTOM_READINGS[text];
         
-        let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=rm&q=${encodeURIComponent(text)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            let romaji = (data[0] && data[0][0] && data[0][0][3]) ? data[0][0][3] : "";
+            
+            // Google翻訳が中国語(Pinyin)で返してくる場合（āなど）の補正
+            let fixed = romaji.toLowerCase().replace(/[~~\-ー\s]/g, '');
+            const romajiMap = { 'ā': 'aa', 'ī': 'ii', 'ū': 'uu', 'ē': 'ei', 'ō': 'ou' };
+            Object.keys(romajiMap).forEach(key => { fixed = fixed.split(key).join(romajiMap[key]); });
+            
+            return wanakana.toHiragana(fixed);
+        } catch (e) { return text; }
+    }
+    
+    async function getSmartKanji(text) {
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            return data[0][0][0]; 
+        } catch (e) { return text; }
+    }
+
+    async function getImeCandidates(text) {
+        try {
+            const res = await fetch(`https://www.google.com/transliterate?langpair=ja-Hira|ja&text=${encodeURIComponent(text)}`);
+            const data = await res.json();
+            return data; 
+        } catch (e) { return []; }
+    }
+
+    function updateDisplay(kanji, reading) {
+        target.style.display = 'flex';
+        howToWrite.style.display = 'block';
+        const hasKanji = /[一-龠]/.test(kanji);
         
-        // ピンイン特有の記号（āなど）が混じった場合の対策も兼ねて、
-        // 辞書にない未知の難読漢字はそのまま返すか、特定の処理を挟む
-        let fixed = romaji.toLowerCase().replace(/[~~\-ー\s]/g, '');
-        const romajiMap = { 'ā': 'aa', 'ī': 'ii', 'ū': 'uu', 'ē': 'ei', 'ō': 'ou' };
-        Object.keys(romajiMap).forEach(key => { fixed = fixed.split(key).join(romajiMap[key]); });
+        // メイン表示の更新
+        hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
+        adjustFontSize();
         
-        return wanakana.toHiragana(fixed);
-    } catch (e) { return text; }
-}
+        // 学年ラベルの更新
+        gradeRow.innerHTML = '';
+        if (hasKanji) {
+            // 重複なしで漢字を抽出
+            const chars = Array.from(new Set(kanji.match(/[一-龠]/g)));
+            chars.forEach(char => {
+                const info = getKanjiGrade(char);
+                if (info) {
+                    const tag = document.createElement('div');
+                    tag.className = 'grade-tag';
+                    const searchUrl = `https://www.google.com/search?q=site:kakijun.jp+${encodeURIComponent(char)}`;
+
+                    tag.innerHTML = `
+                        <div class="tag-left">
+                            <span class="char">${char}</span>
+                            <span class="level ${info.className}">${info.label}</span>
+                        </div>
+                        <a href="${searchUrl}" target="_blank" class="stroke-order-btn" title="書き順をみる"></a>
+                    `;
+                    gradeRow.appendChild(tag);
+                }
+            });
+        }
+    }
+
+    function adjustFontSize() {
+        let fontSize = 300;
+        hugeText.style.fontSize = fontSize + "px";
+        const box = target.getBoundingClientRect();
+        while ((hugeText.offsetWidth > box.width * 0.9 || hugeText.offsetHeight > box.height * 0.8) && fontSize > 20) {
+            fontSize -= 5;
+            hugeText.style.fontSize = fontSize + "px";
+        }
+    }
+
+    let timer = null;
+    input.addEventListener('input', () => {
+        const val = input.value.trim();
+        clearTimeout(timer);
+        if(!val) { 
+            target.style.display = 'none'; 
+            gradeRow.innerHTML = ''; 
+            howToWrite.style.display = 'none'; 
+            document.getElementById('side-title').style.display='none'; 
+            document.getElementById('suggestion-list').innerHTML=''; 
+            return; 
+        }
+        
+        timer = setTimeout(async () => {
+            const isInputKanji = /[一-龠]/.test(val);
+            let mainText = val;
+            let reading = "";
+
+            if (isInputKanji) {
+                mainText = val;
+                reading = await getReading(val);
+            } else {
+                reading = val;
+                const imeData = await getImeCandidates(val);
+                if (imeData.length > 0 && imeData[0][1].length > 0) { 
+                    mainText = imeData[0][1][0]; 
+                } else { 
+                    mainText = await getSmartKanji(val); 
+                }
+            }
+            updateDisplay(mainText, reading);
+            
+            // サイドバー候補
+            const sideList = document.getElementById('suggestion-list');
+            const searchKey = isInputKanji ? reading : val;
+            const candidatesData = await getImeCandidates(searchKey);
+            sideList.innerHTML = '';
+            if (candidatesData.length > 0) {
+                document.getElementById('side-title').style.display = 'block';
+                candidatesData[0][1].slice(0, 8).forEach(cand => {
+                    if (cand !== mainText) {
+                        const card = document.createElement('div');
+                        card.className = 'sub-card';
+                        card.onclick = () => { input.value = cand; updateDisplay(cand, reading); };
+                        card.innerHTML = `<ruby>${cand}<rt>${reading}</rt></ruby>`;
+                        sideList.appendChild(card);
+                    }
+                });
+            } else { document.getElementById('side-title').style.display = 'none'; }
+        }, 500);
+    });
+
+    window.addEventListener('resize', adjustFontSize);
+    
+    /* 音声入力 */
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.onstart = () => { document.getElementById('mic-btn').classList.add('listening'); };
+        recognition.onend = () => { document.getElementById('mic-btn').classList.remove('listening'); };
+        recognition.onresult = (event) => { 
+            input.value = event.results[0][0].transcript; 
+            input.dispatchEvent(new Event('input')); 
+        };
+        document.getElementById('mic-btn').onclick = () => { recognition.start(); };
+    }
+</script>
+</body>
+</html>
