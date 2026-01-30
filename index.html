@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マネしてポン！ | ふりがなマジック連携</title>
+    <title>マネしてポン！ | 神レベル漢字対応</title>
     <script src="https://unpkg.com/wanakana"></script>
     <style>
         /* --- 全体デザイン --- */
@@ -57,45 +57,23 @@
             gap: 12px;
         }
 
-        /* 先生へのメッセージ */
         .teacher-message {
-            font-size: 10px;
-            color: #777;
-            background-color: #f4f6f8;
-            padding: 6px 12px;
-            border-radius: 12px;
-            border: 2px dashed #dde1e6;
-            line-height: 1.4;
-            flex-shrink: 0;
+            font-size: 10px; color: #777; background-color: #f4f6f8;
+            padding: 6px 12px; border-radius: 12px; border: 2px dashed #dde1e6;
+            line-height: 1.4; flex-shrink: 0;
         }
 
-        /* ふりがなマジックへのリンクボタン */
         .magic-link {
-            text-decoration: none;
-            font-size: 10px;
-            font-weight: bold;
-            color: #5e35b1;
-            background-color: #ede7f6;
-            padding: 6px 12px;
-            border-radius: 12px;
-            border: 2px solid #b39ddb;
-            line-height: 1.4;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: transform 0.2s, background-color 0.2s;
-            flex-shrink: 0;
+            text-decoration: none; font-size: 10px; font-weight: bold;
+            color: #5e35b1; background-color: #ede7f6;
+            padding: 6px 12px; border-radius: 12px; border: 2px solid #b39ddb;
+            line-height: 1.4; display: flex; align-items: center; gap: 5px;
+            transition: transform 0.2s, background-color 0.2s; flex-shrink: 0;
         }
-        .magic-link:hover {
-            transform: scale(1.05);
-            background-color: #d1c4e9;
-        }
-        .magic-link::before {
-            content: "✨";
-            font-size: 16px;
-        }
+        .magic-link:hover { transform: scale(1.05); background-color: #d1c4e9; }
+        .magic-link::before { content: "✨"; font-size: 16px; }
 
-        /* SVGマイクボタン */
+        /* マイクボタン */
         #mic-btn {
             position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
             background: transparent; border: none; cursor: pointer; 
@@ -103,9 +81,7 @@
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s;
         }
-        #mic-btn svg {
-            width: 24px; height: 24px; fill: var(--mic-inactive); transition: fill 0.3s;
-        }
+        #mic-btn svg { width: 24px; height: 24px; fill: var(--mic-inactive); transition: fill 0.3s; }
         #mic-btn:hover { background-color: rgba(0,0,0,0.05); }
         #mic-btn.listening svg { fill: var(--accent-red); }
         #mic-btn.listening {
@@ -153,10 +129,19 @@
         .stroke-order-btn:hover { border-color: #2196f3; background: #e3f2fd; transform: scale(1.1); color: #2196f3; }
         .stroke-order-btn::after { content: "▶️"; font-size: 18px; } 
 
+        /* 学年別カラー */
         .g-1 { background-color: #e91e63; } .g-2 { background-color: #ff9800; }
         .g-3 { background-color: #ffc107; color: #333 !important; } .g-4 { background-color: #4caf50; }
         .g-5 { background-color: #2196f3; } .g-6 { background-color: #9c27b0; }
-        .g-jh { background-color: #34495e; } .g-master { background-color: #222; color: #ffd700 !important; }
+        .g-jh { background-color: #34495e; } 
+        /* 達人＆神レベル */
+        .g-master { background-color: #555; color: #fff !important; }
+        .g-god { 
+            background: linear-gradient(135deg, #000, #333); 
+            color: #ffd700 !important; /* Gold Text */
+            border: 2px solid #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
 
         .side-column { flex: 1; background-color: white; border-left: 4px solid #f0f0f0; padding: 20px; overflow-y: auto; }
         .sub-card { background: #fff; padding: 15px; border-radius: 15px; margin-bottom: 15px; cursor: pointer; border: 2px solid #f0f0f0; }
@@ -183,7 +168,6 @@
             なにか おかしな ところが あったら、<br>
             先生に おしえてね。
         </div>
-
         <a href="https://1360808-gif.github.io/HUrigana-Gemini-2/" target="_blank" class="magic-link">
             ながい ぶんしょうの ふりがなは<br>
             「ふりがなマジック」へ
@@ -217,9 +201,20 @@
         6: "胃異遺域宇映延沿我灰拡革閣割株干巻看簡危机揮貴疑吸供胸郷勤筋系敬警劇激穴絹権憲源厳己呼誤后孝皇紅降鋼刻穀骨困砂座済裁策冊蚕至私姿視詞誌磁射捨尺若樹収宗就衆従縦縮熟純処署諸除将傷障城蒸針仁垂推寸盛聖誠宣専泉洗染善奏窓創装層操蔵臓存尊宅担探誕段暖値宙忠著庁頂潮賃痛展討党糖届難乳認納脳派拝背肺俳班晩否批秘腹奮並陛閉片補暮宝訪亡忘棒枚幕密盟模訳郵優幼欲翌乱卵覧裏律臨朗論",
         7: "亜哀挨曖握扱宛嵐依威為畏尉萎偉椅彙違維慰緯壱逸芋陰隠影鋭越援煙鉛縁汚押奥憶臆虞乙俺卸穏佳架華寡箇稼蚊雅餓介塊怪悔懐戒拐皆劾慨概該核殻獲穫郭較隔岳掛潟喝括渇滑褐轄且釜鎌刈甘汗缶肝冠陥乾勘患貫喚換敢棺款閑勧寛憾還艦鑑含奇祈鬼幾輝儀戯詰却脚及丘朽巨拒拠虚距享凶叫峡挟恐恭脅矯響驚仰凝斤琴菌襟謹吟隅勲薫刑茎契恵啓掲渓蛍傾携継詣慶系茎鶏鯨撃懸謙賢軒遣幻玄孤弧枯誇雇顧鼓互呉娯悟碁侯坑孔巧甲更拘肯侯恒抗攻荒郊衡貢購酵克酷獄駒込頃婚昆恨墾懇佐唆詐砕宰栽索酢錯咲擦撮搾桟傘惨桟暫伺刺嗣施旨脂紫雌摯賜諮侍滋慈軸七執湿漆疾芝赦斜煮遮謝邪愁酬秀臭舟襲蹴修柔充獣渋銃叔淑粛塾俊舜瞬旬巡盾准殉循潤遵庶叙徐償匠升掌晶焦衝鐘冗嬢錠譲嘱飾殖触辱伸辛侵津唇娠振浸紳診寝慎震薪刃尽甚迅陣尋腎須吹炊帥粋衰酔遂睡穂随髄枢崇据杉澄瀬是姓征斉牲凄制逝婿誓請戚惜籍摂潜繕阻措粗礎双桑掃葬遭憎促属賊拓卓諾但奪脱棚丹嘆淡端胆鍛壇弾恥致遅痴稚緻畜蓄逐秩窒嫡沖抽衷鋳駐弔挑彫眺釣懲超聴沈珍朕陳鎮墜堤訂帝偵抵艇締泥摘滴哲徹撤迭典粘殿斗吐途渡奴怒倒凍唐塔悼痘陶到逃透稲踏謄闘胴峠匿督篤凸突屯豚曇鈍奈那縄軟尼弐如尿妊忍寧猫粘悩濃把覇婆罵排杯輩培媒賠陪伯拍泊舶薄迫漠爆縛肌鉢髪伐罰抜閥伴帆搬畔繁般藩販範煩頒盤蛮卑彼扉批披泌疲被避尾微匹姫漂描苗浜賓頻敏瓶怖扶敷普浮符腐膚譜侮賦赴附侮舞封伏幅覆払沸噴墳憤丙併塀幣弊偏遍片浦捕舗募慕簿芳邦奉抱泡胞俸倣峰砲崩蜂飽褒縫乏忙坊妨房肪某冒剖紡帽傍膨謀北墨牧睦僕没堀本奔翻凡盆麻摩磨魔毎枚昧埋幕膜又抹慢漫魅岬妙眠矛霧娘銘滅免麺茂妄盲耗猛網黙紋冶弥厄躍闇由愉諭癒唯幽悠憂雄誘憂融与誉庸揚揺擁窯養抑揚謡翼羅裸頼雷絡酪欄濫吏履痢離硫粒隆竜慮虜了僚寮療瞭糧陵倫厘隣塁涙累励鈴隷零霊麗齢暦歴列劣烈裂廉恋錬炉露廊楼浪漏老郎六録論惑枠湾腕"
     };
+    
+    // 特別な漢字リスト（ここに「𰻞」などのサロゲートペア文字も入れる）
+    const GOD_KANJI_LIST = ["鬱", "𰻞", "薔", "薇", "檸", "檬", "醤", "魑", "魅", "魍", "魎"];
 
     function getKanjiGrade(char) {
-        if (!/[一-龠]/.test(char)) return null;
+        // 通常の漢字判定
+        if (!/[\u4E00-\u9FFF\u3400-\u4DBF\u20000-\u2A6DF\u2A700-\u2B73F\u2B740-\u2B81F\u2B820-\u2CEAF\u2CEB0-\u2EBEF\u30000-\u3134F]/.test(char)) return null;
+
+        // 神レベル判定
+        if (GOD_KANJI_LIST.includes(char)) {
+            return { label: "神", className: "g-god" };
+        }
+
+        // 学年判定
         for (let g = 1; g <= 7; g++) {
             if (GRADE_DATA[g].includes(char)) {
                 if (g === 7) return { label: "中学", className: "g-jh" };
@@ -268,19 +263,30 @@
     function updateDisplay(kanji, reading) {
         target.style.display = 'flex';
         howToWrite.style.display = 'block';
-        const hasKanji = /[一-龠]/.test(kanji);
+        
+        // 漢字判定（拡張文字含む）
+        const hasKanji = /[\u4E00-\u9FFF\u3400-\u4DBF\u20000-\u2A6DF]/.test(kanji);
         hugeText.innerHTML = hasKanji ? `<ruby>${kanji}<rt>${reading}</rt></ruby>` : kanji;
         adjustFontSize();
         
         gradeRow.innerHTML = '';
         if (hasKanji) {
-            kanji.split('').forEach(char => {
+            // ★重要修正★ split('') ではなく [...kanji] を使うことで
+            // 「𰻞」のような4バイト文字（サロゲートペア）を正しく1文字として扱う
+            [...kanji].forEach(char => {
                 const info = getKanjiGrade(char);
                 if (info) {
                     const tag = document.createElement('div');
                     tag.className = 'grade-tag';
-                    // kakijun.com へのリンク
-                    const searchUrl = `https://www.google.com/search?q=site:kakijun.com+${encodeURIComponent(char)}+書き順`;
+                    
+                    // 神レベルなら「site:kakijun.com」を外して、広く検索する
+                    let searchQ = "";
+                    if (info.className === 'g-god') {
+                        searchQ = `${encodeURIComponent(char)} 書き順`;
+                    } else {
+                        searchQ = `site:kakijun.com ${encodeURIComponent(char)} 書き順`;
+                    }
+                    const searchUrl = `https://www.google.com/search?q=${searchQ}`;
 
                     tag.innerHTML = `
                         <div class="tag-left">
@@ -312,7 +318,7 @@
         if(!val) { target.style.display = 'none'; gradeRow.innerHTML = ''; howToWrite.style.display = 'none'; document.getElementById('side-title').style.display='none'; document.getElementById('suggestion-list').innerHTML=''; return; }
         
         timer = setTimeout(async () => {
-            const isInputKanji = /[一-龠]/.test(val);
+            const isInputKanji = /[\u4E00-\u9FFF]/.test(val);
             let mainText = val;
             let reading = "";
 
